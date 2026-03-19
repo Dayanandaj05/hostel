@@ -7,17 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
-import 'app/app.dart';
-import 'core/auth/auth_session_provider.dart';
-import 'firebase_options.dart';
-import 'features/auth/domain/repositories/auth_repository.dart';
-import 'features/auth/presentation/controllers/auth_provider_controller.dart';
-import 'features/complaints/data/repositories/firestore_complaint_repository.dart';
-import 'features/complaints/domain/repositories/complaint_repository.dart';
-import 'features/leave/data/repositories/firestore_leave_request_repository.dart';
-import 'features/leave/domain/repositories/leave_request_repository.dart';
-import 'features/student/data/student_profile_provider.dart';
-import 'services/storage/firestore_service.dart';
+import 'package:hostel_app/app/app.dart';
+import 'package:hostel_app/core/auth/auth_session_provider.dart';
+import 'package:hostel_app/firebase_options.dart';
+import 'package:hostel_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
+import 'package:hostel_app/features/complaints/data/repositories/firestore_complaint_repository.dart';
+import 'package:hostel_app/features/complaints/domain/repositories/complaint_repository.dart';
+import 'package:hostel_app/features/leave/data/repositories/firestore_leave_request_repository.dart';
+import 'package:hostel_app/features/leave/domain/repositories/leave_request_repository.dart';
+import 'package:hostel_app/features/student/data/student_profile_provider.dart';
+import 'package:hostel_app/services/storage/firestore_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -91,7 +91,7 @@ Future<void> _configureFirebaseMessaging() async {
   });
 }
 
-class HostelManagementBootstrap extends StatelessWidget {
+class HostelManagementBootstrap extends StatefulWidget {
   const HostelManagementBootstrap({
     required this.firebaseReady,
     super.key,
@@ -100,53 +100,59 @@ class HostelManagementBootstrap extends StatelessWidget {
   final bool firebaseReady;
 
   @override
+  State<HostelManagementBootstrap> createState() => _HostelManagementBootstrapState();
+}
+
+class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
+  late final AuthSessionProvider _authSessionProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSessionProvider = AuthSessionProvider()..initialize();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final providers = <SingleChildWidget>[
-      ChangeNotifierProvider<AuthSessionProvider>(
-        create: (_) => AuthSessionProvider()..initialize(),
-      ),
-    ];
-
-    if (firebaseReady) {
-      final firebaseAuth = FirebaseAuth.instance;
-      final firestore = FirebaseFirestore.instance;
-
-      final authService = AuthService(
-        firebaseAuth: firebaseAuth,
-        firestore: firestore,
-      );
-
-      final firestoreService = FirestoreService(firestore);
-      final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
-      final complaintRepository = FirestoreComplaintRepository(firestoreService);
-      final studentProfileProvider = StudentProfileProvider(firestore);
-
-      // Wire auth state → student profile watching.
-      firebaseAuth.authStateChanges().listen((user) {
-        if (user != null) {
-          studentProfileProvider.startWatching(user.uid);
-        } else {
-          studentProfileProvider.stopWatching();
-        }
-      });
-
-      providers.addAll([
-        Provider<AuthService>.value(value: authService),
-        Provider<FirestoreService>.value(value: firestoreService),
-        Provider<LeaveRequestRepository>.value(value: leaveRepository),
-        Provider<ComplaintRepository>.value(value: complaintRepository),
-        ChangeNotifierProvider<StudentProfileProvider>.value(
-          value: studentProfileProvider,
-        ),
-        ChangeNotifierProvider<AuthProviderController>(
-          create: (_) => AuthProviderController(authService)..initialize(),
-        ),
-      ]);
-    }
-
     return MultiProvider(
-      providers: providers,
-      child: const HostelManagementApp(),
+      providers: [
+        ChangeNotifierProvider<AuthSessionProvider>.value(value: _authSessionProvider),
+      ],
+      builder: (context, _) {
+        if (!widget.firebaseReady) {
+          return const HostelManagementApp();
+        }
+
+        final firestore = FirebaseFirestore.instance;
+        final authService = AuthService(
+          firebaseAuth: FirebaseAuth.instance,
+          firestore: firestore,
+        );
+
+        final firestoreService = FirestoreService(firestore);
+        final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
+
+        return MultiProvider(
+          providers: [
+            Provider<AuthService>.value(value: authService),
+            Provider<FirestoreService>.value(value: firestoreService),
+            Provider<LeaveRequestRepository>.value(value: leaveRepository),
+            Provider<ComplaintRepository>(
+              create: (_) => FirestoreComplaintRepository(firestoreService),
+            ),
+            ChangeNotifierProvider<StudentProfileProvider>(
+              create: (_) => StudentProfileProvider(firestore),
+            ),
+            ChangeNotifierProvider<LeaveRequestController>(
+              create: (_) => LeaveRequestController(leaveRepository),
+            ),
+            ChangeNotifierProvider<AuthProviderController>(
+              create: (_) => AuthProviderController(authService)..initialize(),
+            ),
+          ],
+          child: const HostelManagementApp(),
+        );
+      },
     );
   }
 }

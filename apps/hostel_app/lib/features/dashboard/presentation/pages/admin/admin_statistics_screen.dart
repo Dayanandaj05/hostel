@@ -86,7 +86,7 @@ class _StatCard extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      color: scheme.surfaceContainerHighest.withOpacity(0.4),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(

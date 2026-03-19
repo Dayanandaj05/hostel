@@ -11,4 +11,6 @@ class LeaveRequestException implements Exception {
 
 abstract class LeaveRequestRepository {
   Future<void> submitLeaveRequest(LeaveRequestModel leaveRequest);
+  Stream<List<LeaveRequestModel>> watchMyLeaveRequests(String userId);
+  Future<void> cancelLeaveRequest(String requestId);
 }

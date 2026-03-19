@@ -8,24 +8,54 @@ extension LeaveRequestStatusExtension on LeaveRequestStatus {
         LeaveRequestStatus.approved => 'approved',
         LeaveRequestStatus.rejected => 'rejected',
       };
+
+  static LeaveRequestStatus fromString(String? value) => switch (value) {
+        'approved' => LeaveRequestStatus.approved,
+        'rejected' => LeaveRequestStatus.rejected,
+        _ => LeaveRequestStatus.pending,
+      };
 }
 
 class LeaveRequestModel {
   LeaveRequestModel({
+    this.id,
     required this.userId,
     required this.startDate,
     required this.endDate,
     required this.reason,
     required this.status,
+    this.leaveType,
+    this.approvalManager,
     this.createdAt,
   });
 
+  final String? id;
   final String userId;
   final DateTime startDate;
   final DateTime endDate;
   final String reason;
   final LeaveRequestStatus status;
+  final String? leaveType;
+  final String? approvalManager;
   final DateTime? createdAt;
+
+  factory LeaveRequestModel.fromFirestore(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return LeaveRequestModel(
+      id: doc.id,
+      userId: data['userId'] ?? '',
+      startDate: (data['startDate'] as Timestamp).toDate(),
+      endDate: (data['endDate'] as Timestamp).toDate(),
+      reason: data['reason'] ?? '',
+      leaveType: data['leaveType'] as String?,
+      approvalManager: data['approvalManager'] as String?,
+      status: LeaveRequestStatusExtension.fromString(data['status'] as String?),
+      createdAt: data['createdAt'] != null
+          ? (data['createdAt'] as Timestamp).toDate()
+          : null,
+    );
+  }
 
   Map<String, dynamic> toFirestore() {
     return {
@@ -34,6 +64,8 @@ class LeaveRequestModel {
       'endDate': Timestamp.fromDate(endDate),
       'reason': reason,
       'status': status.value,
+      'leaveType': leaveType,
+      'approvalManager': approvalManager,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../domain/entities/user_model.dart';
-import '../../controllers/auth_provider_controller.dart';
+import 'package:hostel_app/features/auth/domain/entities/user_model.dart';
+import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PSG Hostel – Login Screen
@@ -88,10 +88,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = '25mx308@psgtech.hostel';
       final password = 'password123';
 
-      // 1. Create Auth User (or catch if exists)
-      bool created = false;
+      // 1. Create Auth User or Sign In if exists
+      bool success = false;
       try {
-        created = await auth.signUpWithEmailAndPassword(
+        success = await auth.signUpWithEmailAndPassword(
           email: email,
           password: password,
           name: 'Test Student',
@@ -99,13 +99,17 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } catch (e) {
         if (e.toString().contains('email-already-in-use')) {
-          created = true;
+          // If already exists, sign in to ensure we have the UID
+          success = await auth.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
         } else {
           rethrow;
         }
       }
 
-      if (created) {
+      if (success) {
         final uid = auth.user?.uid;
         if (uid != null) {
           // 2. Add extra profile fields to Firestore
@@ -135,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
             'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
             'eggToken': true,
             'nonVegToken': false,
-            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
           if (mounted) {
@@ -461,7 +465,7 @@ class _BrandPanel extends StatelessWidget {
               Text(
                 'Resident Portal',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
+                  color: Colors.white.withOpacity(0.75),
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
                   letterSpacing: 1,
@@ -483,7 +487,7 @@ class _BrandPanel extends StatelessWidget {
                       Text(
                         text,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: Colors.white.withOpacity(0.85),
                           fontSize: 14,
                         ),
                       ),
@@ -542,7 +546,7 @@ class _CompactHeader extends StatelessWidget {
             Text(
               'Resident Portal',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.75),
+                color: Colors.white.withOpacity(0.75),
                 fontSize: 13,
               ),
             ),
@@ -577,7 +581,7 @@ class _PsgDiamondLogo extends StatelessWidget {
               borderRadius: BorderRadius.circular(size * 0.16),
               boxShadow: [
                 BoxShadow(
-                  color: _kTeal.withValues(alpha: 0.45),
+                  color: _kTeal.withOpacity(0.45),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),

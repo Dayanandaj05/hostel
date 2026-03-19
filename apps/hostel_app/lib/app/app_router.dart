@@ -119,13 +119,7 @@ final class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.studentLeave,
-          builder: (context, _) =>
-              ChangeNotifierProvider<LeaveRequestController>(
-            create: (_) => LeaveRequestController(
-              context.read<LeaveRequestRepository>(),
-            ),
-            child: const LeaveRequestScreen(),
-          ),
+          builder: (context, _) => const LeaveRequestScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentComplaints,
