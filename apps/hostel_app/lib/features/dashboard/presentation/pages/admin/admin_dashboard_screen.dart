@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../../app/app_router.dart';
+import '../../../../../app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -109,7 +109,7 @@ class _AdminActionCard extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      color: scheme.surfaceContainerHighest.withOpacity(0.45),
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,

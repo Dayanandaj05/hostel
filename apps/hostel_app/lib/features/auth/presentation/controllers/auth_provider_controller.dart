@@ -15,12 +15,15 @@ class AuthProviderController extends ChangeNotifier {
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  // isAuthenticated is true ONLY when we also have the user's role from Firestore.
+  // This prevents the router from redirecting to /unauthorized while the user
+  // doc is still being fetched.
   bool get isAuthenticated => _user != null;
   UserRole? get role => _user?.role;
 
   Future<void> initialize() async {
     _isLoading = true;
-    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -34,6 +37,7 @@ class AuthProviderController extends ChangeNotifier {
       notifyListeners();
     }
 
+    // Keep user model in sync with Firestore changes.
     _authService.watchCurrentUserModel().listen((userModel) {
       _user = userModel;
       notifyListeners();
@@ -58,20 +62,21 @@ class AuthProviderController extends ChangeNotifier {
         role: role,
       );
 
-      _user = await _authService.getCurrentUserModel();
-      notifyListeners();
+      // Fetch the full user model before notifying — ensures router sees a
+      // complete state (isAuthenticated && role != null) in one go.
+      if (credential.user != null) {
+        _user = await _authService.getCurrentUserModel();
+      }
       return credential.user != null;
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
-      notifyListeners();
       return false;
     } catch (e) {
       _errorMessage = 'Sign-up failed: $e';
-      notifyListeners();
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      notifyListeners(); // Single notification after everything is resolved.
     }
   }
 
@@ -89,26 +94,26 @@ class AuthProviderController extends ChangeNotifier {
         password: password,
       );
 
-      _user = await _authService.getCurrentUserModel();
-      notifyListeners();
-      return credential.user != null;
+      // Fetch the full user model before notifying — ensures router sees a
+      // complete state (isAuthenticated && role != null) in one go.
+      if (credential.user != null) {
+        _user = await _authService.getCurrentUserModel();
+      }
+      return credential.user != null && _user != null;
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
-      notifyListeners();
       return false;
     } catch (e) {
       _errorMessage = 'Sign-in failed: $e';
-      notifyListeners();
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      notifyListeners(); // Single notification after everything is resolved.
     }
   }
 
   Future<void> signOut() async {
     _isLoading = true;
-    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -129,7 +134,6 @@ class AuthProviderController extends ChangeNotifier {
 
     try {
       await _authService.sendPasswordResetEmail(email);
-      _errorMessage = 'Check your email for password reset link.';
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
     } catch (e) {

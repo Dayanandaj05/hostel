@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'app_routes.dart';
 import '../features/auth/domain/entities/user_model.dart';
 import '../features/auth/presentation/controllers/auth_provider_controller.dart';
 import '../features/auth/presentation/pages/common/login_screen.dart';
@@ -17,42 +18,10 @@ import '../features/dashboard/presentation/pages/admin/admin_statistics_screen.d
 import '../features/dashboard/presentation/pages/admin/admin_user_management_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_dashboard_screen.dart';
 import '../features/tokens/presentation/pages/student/book_token_screen.dart';
-import '../features/leave/domain/repositories/leave_request_repository.dart';
-import '../features/leave/presentation/controllers/leave_request_controller.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
 import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
 
-final class AppRoutes {
-  static const splash = '/';
-  static const login = '/login';
-  static const unauthorized = '/unauthorized';
-
-  static const studentHome = '/student';
-  static const studentRoom = '/student/room';
-  static const studentLeave = '/student/leave';
-  static const studentComplaints = '/student/complaints';
-  static const studentTokens = '/student/tokens';
-  static const studentTShirt = '/student/tshirt';
-  static const studentNotices = '/student/notices';
-  static const studentProfile = '/student/profile';
-  static const studentMess = '/student/mess';
-  static const studentFees = '/student/fees';
-  static const studentContact = '/student/contact';
-
-  static const wardenHome = '/warden';
-  static const wardenLeaveRequests = '/warden/leave-requests';
-  static const wardenComplaints = '/warden/complaints';
-  static const wardenNotices = '/warden/notices';
-
-  static const adminHome = '/admin';
-  static const adminUsers = '/admin/users';
-  static const adminRoles = '/admin/roles';
-  static const adminRooms = '/admin/rooms';
-  static const adminNotices = '/admin/notices';
-  static const adminDashboard = '/admin/dashboard';
-}
-
-final class AppRouter {
+abstract class AppRouter {
   static GoRouter build(AuthProviderController authProvider) {
     return GoRouter(
       initialLocation: AppRoutes.splash,
@@ -66,10 +35,8 @@ final class AppRouter {
           return isLoginRoute ? null : AppRoutes.login;
         }
 
-        final role = authProvider.role;
-        if (role == null) {
-          return AppRoutes.unauthorized;
-        }
+        // isAuthenticated guarantees _user != null and role is set.
+        final role = authProvider.role!;
 
         final roleHome = switch (role) {
           UserRole.student => AppRoutes.studentHome,

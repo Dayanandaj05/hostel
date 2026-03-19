@@ -136,7 +136,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(cs.surfaceContainerHighest.withOpacity(0.3)),
+          headingRowColor: WidgetStateProperty.all(cs.surfaceContainerHighest.withValues(alpha: 0.3)),
           columns: const [
             DataColumn(label: Text('S.No', style: TextStyle(fontWeight: FontWeight.bold))),
             DataColumn(label: Text('From Date', style: TextStyle(fontWeight: FontWeight.bold))),

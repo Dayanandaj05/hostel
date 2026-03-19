@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:hostel_app/features/auth/domain/entities/user_model.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,76 +87,141 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _seedTestUser(AuthProviderController auth) async {
-    setState(() => _inlineError = 'Seeding test user...');
-    try {
-      final email = '25mx308@psgtech.hostel';
-      final password = 'admin123';
+    setState(() => _inlineError = '⏳ Seeding test account...');
 
-      // 1. Create Auth User or Sign In if exists
-      bool success = false;
-      final result = await auth.signUpWithEmailAndPassword(
+    const email = '25mx308@psgtech.hostel';
+    const password = 'password123';
+
+    String? uid;
+
+    // Strategy: try sign-in first (works when account already exists with
+    // admin123). If the account doesn't exist at all, create it. If sign-in
+    // fails for any other reason (e.g. wrong password), show a clear error.
+    try {
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
-        name: 'Test Student',
-        role: UserRole.student,
       );
+      uid = cred.user?.uid;
+    } on FirebaseAuthException catch (signInErr) {
+      // Account does not exist yet — create it now.
+      final noAccount = signInErr.code == 'user-not-found' ||
+          signInErr.code == 'invalid-credential' ||
+          signInErr.code == 'INVALID_LOGIN_CREDENTIALS';
 
-      // If sign-up failed because user exists, try signing in
-      if (!result && auth.errorMessage != null && 
-          auth.errorMessage!.toLowerCase().contains('exists')) {
-        success = await auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      } else {
-        success = result;
-      }
-
-      if (success) {
-        final uid = auth.user?.uid;
-        if (uid != null) {
-          // 2. Add extra profile fields to Firestore
-          await FirebaseFirestore.instance.collection('users').doc(uid).set({
-            'name': 'Test Student',
-            'email': email,
-            'role': 'student',
-            'rollNumber': '25MX308',
-            'programme': 'MASTER OF COMPUTER APPLICATIONS',
-            'yearOfStudy': '1st Year, 2025 Batch',
-            'contactPhone': '+91 9876543210',
-            'fatherName': 'PSG Father',
-            'address': 'PSG Hostel, Avinashi Road, Coimbatore',
-            'primaryMobile': '+91 9876543210',
-            'secondaryMobile': '+91 9876543211',
-            'establishment': 50000,
-            'deposit': 5000,
-            'balance': 39447,
-            'hostelName': 'Main Hostel',
-            'blockName': 'G3 Block',
-            'roomType': 'New 4 In 1 Room',
-            'floor': 'Fifth Floor',
-            'roomNumber': 'G3-621',
-            'joiningDate': '04-AUG-25',
-            'messName': 'G Mess',
-            'messType': 'South Indian',
-            'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
-            'eggToken': true,
-            'nonVegToken': false,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Test user 25MX308 created/updated!')),
-            );
-            _rollController.text = '25MX308';
-            _passwordController.text = 'admin123';
-            setState(() => _inlineError = null);
+      if (noAccount) {
+        try {
+          final cred = await FirebaseAuth.instance
+              .createUserWithEmailAndPassword(email: email, password: password);
+          uid = cred.user?.uid;
+        } on FirebaseAuthException catch (createErr) {
+          if (createErr.code == 'email-already-in-use') {
+            // This happens if invalid-credential was returned by signIn for an existing account
+            if (mounted) {
+              setState(() => _inlineError =
+                  '⚠️ Account exists with a different password.\n'
+                  'Delete "25mx308@psgtech.hostel" from Firebase Auth console, or use the correct password.');
+            }
+            return;
           }
+          if (mounted) {
+            setState(() => _inlineError = 'Seed failed (create): ${createErr.message}');
+          }
+          return;
+        } catch (createErr) {
+          if (mounted) {
+            setState(() => _inlineError = 'Seed failed (create): $createErr');
+          }
+          return;
         }
+      } else if (signInErr.code == 'wrong-password' ||
+          signInErr.code == 'email-already-in-use') {
+        // Account exists but with a different password — can't recover here.
+        if (mounted) {
+          setState(() => _inlineError =
+              '⚠️ Account exists with a different password.\n'
+              'Delete "25mx308@psgtech.hostel" from Firebase Auth console, then retry.');
+        }
+        return;
+      } else {
+        if (mounted) {
+          setState(() => _inlineError =
+              'Seed failed: [${signInErr.code}] ${signInErr.message}');
+        }
+        return;
       }
     } catch (e) {
       if (mounted) setState(() => _inlineError = 'Seed failed: $e');
+      return;
+    }
+
+    if (uid == null) {
+      if (mounted) {
+        setState(() => _inlineError = 'Seed failed: could not get UID.');
+      }
+      return;
+    }
+
+    // Write the full profile document.
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'name': 'Test Student',
+        'email': email,
+        'role': 'student',
+        'rollNumber': '25MX308',
+        'programme': 'MASTER OF COMPUTER APPLICATIONS',
+        'yearOfStudy': '1st Year, 2025 Batch',
+        'contactPhone': '+91 9876543210',
+        'fatherName': 'PSG Father',
+        'address': 'PSG Hostel, Avinashi Road, Coimbatore',
+        'primaryMobile': '+91 9876543210',
+        'secondaryMobile': '+91 9876543211',
+        'establishment': 50000,
+        'deposit': 5000,
+        'balance': 39447,
+        'hostelName': 'Main Hostel',
+        'blockName': 'G3 Block',
+        'roomType': 'New 4 In 1 Room',
+        'floor': 'Fifth Floor',
+        'roomNumber': 'G3-621',
+        'joiningDate': '04-AUG-25',
+        'messName': 'G Mess',
+        'messType': 'South Indian',
+        'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
+        'eggToken': true,
+        'nonVegToken': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _inlineError = 'Seed: doc write failed: $e');
+      }
+      return;
+    }
+
+    // Refresh the AuthProviderController so it loads the full UserModel.
+    // If Firebase session is already active (from the sign-in/create above),
+    // just fetch the user model directly.
+    final currentFbUser = FirebaseAuth.instance.currentUser;
+    if (currentFbUser != null && currentFbUser.uid == uid) {
+      // Force-load the UserModel from Firestore into our controller.
+      final success = await auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      if (!mounted) return;
+      if (success) {
+        _rollController.text = '25MX308';
+        _passwordController.text = 'password123';
+        setState(() => _inlineError = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Test user seeded and signed in!')),
+        );
+        // GoRouter redirect fires automatically.
+      } else {
+        setState(() => _inlineError =
+            auth.errorMessage ?? 'Seed OK but controller sign-in failed.');
+      }
     }
   }
 
@@ -468,7 +533,7 @@ class _BrandPanel extends StatelessWidget {
               Text(
                 'Resident Portal',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.75),
+                  color: Colors.white.withValues(alpha: 0.75),
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
                   letterSpacing: 1,
@@ -490,7 +555,7 @@ class _BrandPanel extends StatelessWidget {
                       Text(
                         text,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 14,
                         ),
                       ),
@@ -549,7 +614,7 @@ class _CompactHeader extends StatelessWidget {
             Text(
               'Resident Portal',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.75),
+                color: Colors.white.withValues(alpha: 0.75),
                 fontSize: 13,
               ),
             ),
@@ -584,7 +649,7 @@ class _PsgDiamondLogo extends StatelessWidget {
               borderRadius: BorderRadius.circular(size * 0.16),
               boxShadow: [
                 BoxShadow(
-                  color: _kTeal.withOpacity(0.45),
+                  color: _kTeal.withValues(alpha: 0.45),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
