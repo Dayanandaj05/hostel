@@ -51,12 +51,11 @@ final class AppRouter {
       refreshListenable: authProvider,
       redirect: (context, state) {
         final location = state.uri.path;
-        final isPublicRoute =
-            location == AppRoutes.splash || location == AppRoutes.login;
-        final isNeutralRoute = location == AppRoutes.unauthorized;
+        final isLoginRoute = location == AppRoutes.login;
 
         if (!authProvider.isAuthenticated) {
-          return isPublicRoute ? null : AppRoutes.login;
+          // Unauthenticated users can only be on the login page.
+          return isLoginRoute ? null : AppRoutes.login;
         }
 
         final role = authProvider.role;
@@ -74,7 +73,7 @@ final class AppRouter {
           return roleHome;
         }
 
-        if (isNeutralRoute) {
+        if (location == AppRoutes.unauthorized) {
           return null;
         }
 

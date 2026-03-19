@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 final class AppTheme {
+  static const _brandNavy = Color(0xFF0D2137);
+
   static ThemeData get light {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: Colors.indigo,
+      seedColor: _brandNavy,
       brightness: Brightness.light,
     );
 
@@ -11,10 +13,10 @@ final class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colorScheme.surface,
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         centerTitle: false,
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
+        backgroundColor: _brandNavy,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       inputDecorationTheme: const InputDecorationTheme(
@@ -28,7 +30,7 @@ final class AppTheme {
 
   static ThemeData get dark {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: Colors.indigo,
+      seedColor: _brandNavy,
       brightness: Brightness.dark,
     );
 
@@ -36,10 +38,10 @@ final class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colorScheme.surface,
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         centerTitle: false,
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
+        backgroundColor: _brandNavy,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       inputDecorationTheme: const InputDecorationTheme(

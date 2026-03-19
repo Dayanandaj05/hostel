@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../domain/entities/user_model.dart';
 import '../../controllers/auth_provider_controller.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PSG Hostel – Login Screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _kNavy = Color(0xFF0D2137);
+const _kTeal = Color(0xFF009688);
+const _kBreakpoint = 700.0;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,235 +20,503 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _emailController;
+  late final TextEditingController _rollController;
   late final TextEditingController _passwordController;
-  bool _isSignUpMode = false;
-  late final TextEditingController _nameController;
-  UserRole? _selectedRole;
+  bool _obscurePassword = true;
+  bool _showBanner = true;
+  String? _inlineError;
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController();
+    _rollController = TextEditingController();
     _passwordController = TextEditingController();
-    _nameController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _rollController.dispose();
     _passwordController.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSubmit(AuthProviderController authProvider) async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  // ── Auth helpers ──────────────────────────────────────────────────────────
 
-    final email = _emailController.text;
+  String _buildEmail(String roll) => '${roll.trim().toLowerCase()}@psgtech.hostel';
+
+  Future<void> _handleSignIn(AuthProviderController auth) async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _inlineError = null);
+
+    final email = _buildEmail(_rollController.text);
     final password = _passwordController.text;
 
-    if (_isSignUpMode) {
-      final name = _nameController.text;
-      final role = _selectedRole ?? UserRole.student;
+    final success = await auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
 
-      final success = await authProvider.signUpWithEmailAndPassword(
-        email: email,
-        password: password,
-        name: name,
-        role: role,
+    if (!success && mounted) {
+      setState(() {
+        _inlineError = auth.errorMessage ?? 'Sign-in failed. Please try again.';
+      });
+    }
+    // On success GoRouter redirects automatically — no manual navigation.
+  }
+
+  Future<void> _handleForgotPassword(AuthProviderController auth) async {
+    final roll = _rollController.text.trim();
+    if (roll.isEmpty) {
+      setState(() => _inlineError = 'Enter your Roll Number first.');
+      return;
+    }
+    await auth.sendPasswordResetEmail(_buildEmail(roll));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('If an account exists, a password-reset link was sent.'),
+        ),
       );
-
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign-up successful!')),
-        );
-      }
-    } else {
-      final success = await authProvider.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (!success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(authProvider.errorMessage ?? 'Sign-in failed')),
-        );
-      }
     }
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Consumer<AuthProviderController>(
-            builder: (context, authProvider, _) {
+      body: Consumer<AuthProviderController>(
+        builder: (context, auth, _) {
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= _kBreakpoint;
+
+              if (wide) {
+                return Row(
+                  children: [
+                    Expanded(child: _BrandPanel()),
+                    Expanded(
+                      child: _formSide(auth),
+                    ),
+                  ],
+                );
+              }
+
+              // Narrow / mobile
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(
+                  children: [
+                    _CompactHeader(),
+                    _formSide(auth),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _formSide(AuthProviderController auth) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Info banner ──
+              if (_showBanner) _infoBanner(),
+
+              const SizedBox(height: 8),
+
+              Text(
+                'Sign In',
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Use your institution roll number',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // ── Form ──
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Roll Number
+                    TextFormField(
+                      controller: _rollController,
+                      enabled: !auth.isLoading,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: 'Roll Number',
+                        hintText: 'e.g. 24MCA001',
+                        prefixIcon: const Icon(Icons.badge_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Roll number is required';
+                        }
+                        if (v.trim().length < 5) {
+                          return 'Enter a valid roll number (min 5 chars)';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Password
+                    TextFormField(
+                      controller: _passwordController,
+                      enabled: !auth.isLoading,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                          onPressed: () {
+                            setState(
+                                () => _obscurePassword = !_obscurePassword);
+                          },
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Password is required';
+                        }
+                        if (v.length < 6) {
+                          return 'Must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // Forgot password
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed:
+                            auth.isLoading ? null : () => _handleForgotPassword(auth),
+                        child: const Text('Forgot Password?'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Sign In button
+                    SizedBox(
+                      height: 50,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _kNavy,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed:
+                            auth.isLoading ? null : () => _handleSignIn(auth),
+                        child: auth.isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Sign In',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                      ),
+                    ),
+
+                    // ── Inline error ──
+                    if (_inlineError != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline,
+                                color: Colors.red.shade700, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _inlineError!,
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // Help text
+              Center(
+                child: Text(
+                  'Need help? Contact hostel office',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade500,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Info banner ───────────────────────────────────────────────────────────
+
+  Widget _infoBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1), // amber‑50
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.amber.shade300),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: Colors.amber.shade800, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Students are instructed to utilize the online North Indian '
+              'mess application feature available in Mess Details section '
+              'post-login.',
+              style: TextStyle(fontSize: 12.5, color: Colors.amber.shade900),
+            ),
+          ),
+          InkWell(
+            onTap: () => setState(() => _showBanner = false),
+            child: Icon(Icons.close, size: 18, color: Colors.amber.shade800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LEFT BRAND PANEL (wide screens)
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _BrandPanel extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: _kNavy,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Diamond Logo ──
+              const _PsgDiamondLogo(size: 90),
+
+              const SizedBox(height: 24),
+
+              const Text(
+                'PSG INSTITUTIONS',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.5,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                'Resident Portal',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 1,
+                ),
+              ),
+
+              const SizedBox(height: 36),
+
+              // ── Bullet points ──
+              ..._bulletPoints.map(
+                (text) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      const Icon(Icons.check_circle_outline,
+                          color: _kTeal, size: 18),
+                      const SizedBox(width: 10),
                       Text(
-                        'Hostel Management',
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isSignUpMode ? 'Create an Account' : 'Welcome Back',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 32),
-                      if (authProvider.errorMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error, color: Colors.red),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    authProvider.errorMessage!,
-                                    style: const TextStyle(color: Colors.red),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      if (_isSignUpMode)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: TextFormField(
-                            controller: _nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Full Name',
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your name';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            prefixIcon: Icon(Icons.email),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter an email';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: TextFormField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: Icon(Icons.lock),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a password';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      if (_isSignUpMode)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: DropdownButtonFormField<UserRole>(
-                            value: _selectedRole ?? UserRole.student,
-                            decoration: const InputDecoration(
-                              labelText: 'Role',
-                              prefixIcon: Icon(Icons.security),
-                            ),
-                            items: UserRole.values
-                                .map(
-                                  (role) => DropdownMenuItem(
-                                    value: role,
-                                    child: Text(role.value.toUpperCase()),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() => _selectedRole = value);
-                            },
-                          ),
-                        ),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: authProvider.isLoading
-                              ? null
-                              : () => _handleSubmit(authProvider),
-                          child: authProvider.isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _isSignUpMode ? 'Create Account' : 'Sign In',
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: authProvider.isLoading
-                            ? null
-                            : () {
-                                _formKey.currentState?.reset();
-                                _emailController.clear();
-                                _passwordController.clear();
-                                _nameController.clear();
-                                authProvider.clearError();
-                                setState(() => _isSignUpMode = !_isSignUpMode);
-                              },
-                        child: Text(
-                          _isSignUpMode
-                              ? 'Already have an account? Sign In'
-                              : 'Don\'t have an account? Sign Up',
+                        text,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const _bulletPoints = [
+    'Manage your hostel life',
+    'Apply leave digitally',
+    'Track mess & fees',
+  ];
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPACT HEADER (narrow / mobile screens)
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _CompactHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+      decoration: const BoxDecoration(
+        color: _kNavy,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const _PsgDiamondLogo(size: 56),
+            const SizedBox(height: 14),
+            const Text(
+              'PSG INSTITUTIONS',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Resident Portal',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PSG DIAMOND LOGO (Flutter widget – rotated rounded square with "PSG" text)
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _PsgDiamondLogo extends StatelessWidget {
+  const _PsgDiamondLogo({required this.size});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size * 1.3,
+      height: size * 1.3,
+      child: Center(
+        child: Transform.rotate(
+          angle: 0.7854, // 45° in radians
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: _kTeal,
+              borderRadius: BorderRadius.circular(size * 0.16),
+              boxShadow: [
+                BoxShadow(
+                  color: _kTeal.withValues(alpha: 0.45),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Transform.rotate(
+                angle: -0.7854, // rotate text back
+                child: Text(
+                  'PSG',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: size * 0.28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

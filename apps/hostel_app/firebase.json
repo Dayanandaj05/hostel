@@ -1,0 +1,24 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "psg-hostel-app",
+          "appId": "1:251911023605:android:62c9213a8ede85ed2bcebc",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "psg-hostel-app",
+          "configurations": {
+            "web": "1:251911023605:web:ec4ec02252da49802bcebc"
+          }
+        }
+      }
+    }
+  }
+}

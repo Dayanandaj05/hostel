@@ -50,7 +50,15 @@ Future<void> main() async {
 }
 
 Future<bool> _initializeFirebaseSafely() async {
-  return false;
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    return true;
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+    return false;
+  }
 }
 
 Future<void> _configureFirebaseMessaging() async {
