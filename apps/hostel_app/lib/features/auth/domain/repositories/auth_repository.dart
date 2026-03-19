@@ -42,25 +42,26 @@ class AuthService {
   }
 
   Stream<UserModel?> watchCurrentUserModel() {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return Stream.value(null);
-    }
+    return authStateChanges().asyncExpand((user) {
+      if (user == null) {
+        return Stream.value(null);
+      }
 
-    return _firestore.watchDocument('$usersCollection/${user.uid}').map((doc) {
-      if (doc == null) return null;
+      return _firestore.watchDocument('$usersCollection/${user.uid}').map((doc) {
+        if (doc == null) return null;
 
-      return UserModel(
-        uid: user.uid,
-        name: doc['name'] as String? ?? user.displayName ?? 'User',
-        email: doc['email'] as String? ?? user.email ?? '',
-        role: UserRoleExtension.fromString(doc['role'] as String?) ??
-            UserRole.student,
-        roomId: doc['roomId'] as String?,
-        createdAt: doc['createdAt'] != null
-            ? (doc['createdAt'] as Timestamp).toDate()
-            : DateTime.now(),
-      );
+        return UserModel(
+          uid: user.uid,
+          name: doc['name'] as String? ?? user.displayName ?? 'User',
+          email: doc['email'] as String? ?? user.email ?? '',
+          role: UserRoleExtension.fromString(doc['role'] as String?) ??
+              UserRole.student,
+          roomId: doc['roomId'] as String?,
+          createdAt: doc['createdAt'] != null
+              ? (doc['createdAt'] as Timestamp).toDate()
+              : DateTime.now(),
+        );
+      });
     });
   }
 

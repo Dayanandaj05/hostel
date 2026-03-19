@@ -43,7 +43,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ── Auth helpers ──────────────────────────────────────────────────────────
 
-  String _buildEmail(String roll) => '${roll.trim().toLowerCase()}@psgtech.hostel';
+  String _buildEmail(String roll) {
+    final input = roll.trim().toLowerCase();
+    if (input.contains('@')) return input;
+    return '$input@psgtech.hostel';
+  }
 
   Future<void> _handleSignIn(AuthProviderController auth) async {
     if (!_formKey.currentState!.validate()) return;
@@ -86,27 +90,26 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _inlineError = 'Seeding test user...');
     try {
       final email = '25mx308@psgtech.hostel';
-      final password = 'password123';
+      final password = 'admin123';
 
       // 1. Create Auth User or Sign In if exists
       bool success = false;
-      try {
-        success = await auth.signUpWithEmailAndPassword(
+      final result = await auth.signUpWithEmailAndPassword(
+        email: email,
+        password: password,
+        name: 'Test Student',
+        role: UserRole.student,
+      );
+
+      // If sign-up failed because user exists, try signing in
+      if (!result && auth.errorMessage != null && 
+          auth.errorMessage!.toLowerCase().contains('exists')) {
+        success = await auth.signInWithEmailAndPassword(
           email: email,
           password: password,
-          name: 'Test Student',
-          role: UserRole.student,
         );
-      } catch (e) {
-        if (e.toString().contains('email-already-in-use')) {
-          // If already exists, sign in to ensure we have the UID
-          success = await auth.signInWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-        } else {
-          rethrow;
-        }
+      } else {
+        success = result;
       }
 
       if (success) {
@@ -147,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SnackBar(content: Text('Test user 25MX308 created/updated!')),
             );
             _rollController.text = '25MX308';
-            _passwordController.text = 'password123';
+            _passwordController.text = 'admin123';
             setState(() => _inlineError = null);
           }
         }

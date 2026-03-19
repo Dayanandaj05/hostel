@@ -5,7 +5,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:provider/single_child_widget.dart';
 
 import 'package:hostel_app/app/app.dart';
 import 'package:hostel_app/core/auth/auth_session_provider.dart';
@@ -16,6 +15,9 @@ import 'package:hostel_app/features/complaints/data/repositories/firestore_compl
 import 'package:hostel_app/features/complaints/domain/repositories/complaint_repository.dart';
 import 'package:hostel_app/features/leave/data/repositories/firestore_leave_request_repository.dart';
 import 'package:hostel_app/features/leave/domain/repositories/leave_request_repository.dart';
+import 'package:hostel_app/features/leave/presentation/controllers/leave_request_controller.dart';
+import 'package:hostel_app/features/tokens/data/repositories/firestore_food_token_repository.dart';
+import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
 import 'package:hostel_app/features/student/data/student_profile_provider.dart';
 import 'package:hostel_app/services/storage/firestore_service.dart';
 
@@ -131,6 +133,7 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
 
         final firestoreService = FirestoreService(firestore);
         final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
+        final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
 
         return MultiProvider(
           providers: [
@@ -148,6 +151,9 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
             ),
             ChangeNotifierProvider<AuthProviderController>(
               create: (_) => AuthProviderController(authService)..initialize(),
+            ),
+            ChangeNotifierProvider<FoodTokenController>(
+              create: (_) => FoodTokenController(foodTokenRepository),
             ),
           ],
           child: const HostelManagementApp(),

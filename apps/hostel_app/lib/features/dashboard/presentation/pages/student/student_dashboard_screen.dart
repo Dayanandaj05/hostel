@@ -538,6 +538,24 @@ class _OverviewTab extends StatelessWidget {
           value: profile.contactPhone,
           trailing: profile.contactPhone != '--' ? const _VerifiedChip() : null,
         ),
+        const SizedBox(height: 24),
+        const Text(
+          'Quick Actions',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _kNavy),
+        ),
+        const SizedBox(height: 12),
+        _DashboardCardItem(
+          title: 'Apply Leave/Gatepass',
+          subtitle: 'Request permission to leave the hostel.',
+          icon: Icons.exit_to_app_rounded,
+          route: AppRoutes.studentLeave,
+        ),
+        _DashboardCardItem(
+          title: 'Book My Token',
+          subtitle: 'Order special food items from the mess.',
+          icon: Icons.fastfood_rounded,
+          route: AppRoutes.studentTokens,
+        ),
       ],
     );
   }
@@ -793,6 +811,50 @@ class _ContactTabState extends State<_ContactTab> {
         labelText: label,
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+}
+
+class _DashboardCardItem extends StatelessWidget {
+  const _DashboardCardItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.route,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String route;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: ListTile(
+        onTap: () => context.go(route),
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _kTeal.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: _kTeal),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: _kNavy),
+        ),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 13)),
+        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       ),
     );
   }

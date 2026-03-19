@@ -16,6 +16,7 @@ import '../features/dashboard/presentation/pages/admin/admin_room_allocation_scr
 import '../features/dashboard/presentation/pages/admin/admin_statistics_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_user_management_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_dashboard_screen.dart';
+import '../features/tokens/presentation/pages/student/book_token_screen.dart';
 import '../features/leave/domain/repositories/leave_request_repository.dart';
 import '../features/leave/presentation/controllers/leave_request_controller.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
@@ -29,6 +30,7 @@ final class AppRoutes {
   static const studentRoom = '/student/room';
   static const studentLeave = '/student/leave';
   static const studentComplaints = '/student/complaints';
+  static const studentTokens = '/student/tokens';
   static const studentNotices = '/student/notices';
   static const studentProfile = '/student/profile';
   static const studentMess = '/student/mess';
@@ -136,6 +138,10 @@ final class AppRouter {
             title: 'Notices',
             description: 'View hostel notices and announcements.',
           ),
+        ),
+        GoRoute(
+          path: AppRoutes.studentTokens,
+          builder: (context, state) => const BookTokenScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentProfile,
