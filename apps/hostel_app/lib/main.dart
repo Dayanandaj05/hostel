@@ -18,6 +18,8 @@ import 'package:hostel_app/features/leave/domain/repositories/leave_request_repo
 import 'package:hostel_app/features/leave/presentation/controllers/leave_request_controller.dart';
 import 'package:hostel_app/features/tokens/data/repositories/firestore_food_token_repository.dart';
 import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
+import 'package:hostel_app/features/tshirt/data/repositories/firestore_tshirt_repository.dart';
+import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_controller.dart';
 import 'package:hostel_app/features/student/data/student_profile_provider.dart';
 import 'package:hostel_app/services/storage/firestore_service.dart';
 
@@ -134,6 +136,7 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
         final firestoreService = FirestoreService(firestore);
         final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
         final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
+        final tshirtRepository = FirestoreTShirtRepository(firestoreService);
 
         return MultiProvider(
           providers: [
@@ -154,6 +157,9 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
             ),
             ChangeNotifierProvider<FoodTokenController>(
               create: (_) => FoodTokenController(foodTokenRepository),
+            ),
+            ChangeNotifierProvider<TShirtController>(
+              create: (_) => TShirtController(tshirtRepository),
             ),
           ],
           child: const HostelManagementApp(),

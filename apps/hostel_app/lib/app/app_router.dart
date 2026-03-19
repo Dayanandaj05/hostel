@@ -20,6 +20,7 @@ import '../features/tokens/presentation/pages/student/book_token_screen.dart';
 import '../features/leave/domain/repositories/leave_request_repository.dart';
 import '../features/leave/presentation/controllers/leave_request_controller.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
+import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
 
 final class AppRoutes {
   static const splash = '/';
@@ -31,6 +32,7 @@ final class AppRoutes {
   static const studentLeave = '/student/leave';
   static const studentComplaints = '/student/complaints';
   static const studentTokens = '/student/tokens';
+  static const studentTShirt = '/student/tshirt';
   static const studentNotices = '/student/notices';
   static const studentProfile = '/student/profile';
   static const studentMess = '/student/mess';
@@ -142,6 +144,10 @@ final class AppRouter {
         GoRoute(
           path: AppRoutes.studentTokens,
           builder: (context, state) => const BookTokenScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.studentTShirt,
+          builder: (context, state) => const TShirtScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentProfile,

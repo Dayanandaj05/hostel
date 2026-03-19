@@ -182,13 +182,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           children: [
                             Icon(Icons.bed_outlined,
                                 size: 14,
-                                color: Colors.white.withOpacity(0.6)),
+                                  color: Colors.white.withValues(alpha: 0.6)),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
                                 '${p.hostelName} · ${p.roomNumber}',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.6),
+                                  color: Colors.grey.withValues(alpha: 0.1),
                                   fontSize: 13,
                                 ),
                                 maxLines: 1,
@@ -552,9 +552,15 @@ class _OverviewTab extends StatelessWidget {
         ),
         _DashboardCardItem(
           title: 'Book My Token',
-          subtitle: 'Order special food items from the mess.',
-          icon: Icons.fastfood_rounded,
+          subtitle: 'Pre-book your mess tokens easily.',
+          icon: Icons.confirmation_number_rounded,
           route: AppRoutes.studentTokens,
+        ),
+        _DashboardCardItem(
+          title: 'Book T-Shirt',
+          subtitle: 'Order PSG hostel t-shirts in your size.',
+          icon: Icons.checkroom_rounded,
+          route: AppRoutes.studentTShirt,
         ),
       ],
     );
@@ -844,7 +850,7 @@ class _DashboardCardItem extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _kTeal.withOpacity(0.1),
+            color: _kNavy.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: _kTeal),
