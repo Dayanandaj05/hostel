@@ -1,6 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import '../../../domain/entities/user_model.dart';
 import '../../controllers/auth_provider_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,6 +79,77 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text('If an account exists, a password-reset link was sent.'),
         ),
       );
+    }
+  }
+
+  Future<void> _seedTestUser(AuthProviderController auth) async {
+    setState(() => _inlineError = 'Seeding test user...');
+    try {
+      final email = '25mx308@psgtech.hostel';
+      final password = 'password123';
+
+      // 1. Create Auth User (or catch if exists)
+      bool created = false;
+      try {
+        created = await auth.signUpWithEmailAndPassword(
+          email: email,
+          password: password,
+          name: 'Test Student',
+          role: UserRole.student,
+        );
+      } catch (e) {
+        if (e.toString().contains('email-already-in-use')) {
+          created = true;
+        } else {
+          rethrow;
+        }
+      }
+
+      if (created) {
+        final uid = auth.user?.uid;
+        if (uid != null) {
+          // 2. Add extra profile fields to Firestore
+          await FirebaseFirestore.instance.collection('users').doc(uid).set({
+            'name': 'Test Student',
+            'email': email,
+            'role': 'student',
+            'rollNumber': '25MX308',
+            'programme': 'MASTER OF COMPUTER APPLICATIONS',
+            'yearOfStudy': '1st Year, 2025 Batch',
+            'contactPhone': '+91 9876543210',
+            'fatherName': 'PSG Father',
+            'address': 'PSG Hostel, Avinashi Road, Coimbatore',
+            'primaryMobile': '+91 9876543210',
+            'secondaryMobile': '+91 9876543211',
+            'establishment': 50000,
+            'deposit': 5000,
+            'balance': 39447,
+            'hostelName': 'Main Hostel',
+            'blockName': 'G3 Block',
+            'roomType': 'New 4 In 1 Room',
+            'floor': 'Fifth Floor',
+            'roomNumber': 'G3-621',
+            'joiningDate': '04-AUG-25',
+            'messName': 'G Mess',
+            'messType': 'South Indian',
+            'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
+            'eggToken': true,
+            'nonVegToken': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Test user 25MX308 created/updated!')),
+            );
+            _rollController.text = '25MX308';
+            _passwordController.text = 'password123';
+            setState(() => _inlineError = null);
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _inlineError = 'Seed failed: $e');
     }
   }
 
@@ -294,6 +366,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               const SizedBox(height: 28),
+
+              // Seeding button (Temporary)
+              TextButton(
+                onPressed: auth.isLoading ? null : () => _seedTestUser(auth),
+                child: const Text('Seed Test Student Account (25MX308)'),
+              ),
+
+              const SizedBox(height: 12),
 
               // Help text
               Center(

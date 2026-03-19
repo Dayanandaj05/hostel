@@ -16,6 +16,7 @@ import 'features/complaints/data/repositories/firestore_complaint_repository.dar
 import 'features/complaints/domain/repositories/complaint_repository.dart';
 import 'features/leave/data/repositories/firestore_leave_request_repository.dart';
 import 'features/leave/domain/repositories/leave_request_repository.dart';
+import 'features/student/data/student_profile_provider.dart';
 import 'services/storage/firestore_service.dart';
 
 @pragma('vm:entry-point')
@@ -118,12 +119,25 @@ class HostelManagementBootstrap extends StatelessWidget {
       final firestoreService = FirestoreService(firestore);
       final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
       final complaintRepository = FirestoreComplaintRepository(firestoreService);
+      final studentProfileProvider = StudentProfileProvider(firestore);
+
+      // Wire auth state → student profile watching.
+      firebaseAuth.authStateChanges().listen((user) {
+        if (user != null) {
+          studentProfileProvider.startWatching(user.uid);
+        } else {
+          studentProfileProvider.stopWatching();
+        }
+      });
 
       providers.addAll([
         Provider<AuthService>.value(value: authService),
         Provider<FirestoreService>.value(value: firestoreService),
         Provider<LeaveRequestRepository>.value(value: leaveRepository),
         Provider<ComplaintRepository>.value(value: complaintRepository),
+        ChangeNotifierProvider<StudentProfileProvider>.value(
+          value: studentProfileProvider,
+        ),
         ChangeNotifierProvider<AuthProviderController>(
           create: (_) => AuthProviderController(authService)..initialize(),
         ),

@@ -30,6 +30,10 @@ final class AppRoutes {
   static const studentLeave = '/student/leave';
   static const studentComplaints = '/student/complaints';
   static const studentNotices = '/student/notices';
+  static const studentProfile = '/student/profile';
+  static const studentMess = '/student/mess';
+  static const studentFees = '/student/fees';
+  static const studentContact = '/student/contact';
 
   static const wardenHome = '/warden';
   static const wardenLeaveRequests = '/warden/leave-requests';
@@ -137,6 +141,34 @@ final class AppRouter {
           builder: (_, __) => const _PlaceholderPage(
             title: 'Notices',
             description: 'View hostel notices and announcements.',
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.studentProfile,
+          builder: (_, __) => const _PlaceholderPage(
+            title: 'Profile',
+            description: 'View your student profile details.',
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.studentMess,
+          builder: (_, __) => const _PlaceholderPage(
+            title: 'Mess Details',
+            description: 'View mess information and billing.',
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.studentFees,
+          builder: (_, __) => const _PlaceholderPage(
+            title: 'Fees',
+            description: 'View hostel fee details and payment status.',
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.studentContact,
+          builder: (_, __) => const _PlaceholderPage(
+            title: 'Contact',
+            description: 'Contact the hostel office.',
           ),
         ),
         GoRoute(
