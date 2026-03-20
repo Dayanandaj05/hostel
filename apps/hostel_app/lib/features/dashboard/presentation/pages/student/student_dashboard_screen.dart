@@ -101,25 +101,42 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
 
   Widget _buildProfileStrip(StudentProfileProvider profile) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: const Color(0xFF0D2137),
-            child: Text(
-              profile.displayName.isNotEmpty ? profile.displayName[0].toUpperCase() : 'S',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF009688), Color(0xFF00695C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF009688).withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                profile.displayName.isNotEmpty ? profile.displayName[0].toUpperCase() : 'S',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -130,27 +147,34 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
               children: [
                 Text(
                   profile.displayName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0D2137)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   profile.rollNumber,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF009688).withValues(alpha: 0.1),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF009688), Color(0xFF00695C)],
+              ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF009688)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF009688).withValues(alpha: 0.3),
+                  blurRadius: 6,
+                ),
+              ],
             ),
             child: Text(
               '₹${profile.balance}',
-              style: const TextStyle(color: Color(0xFF009688), fontWeight: FontWeight.bold, fontSize: 13),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
@@ -210,38 +234,62 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   }
 
   Widget _buildModuleCard(_ModuleItem module) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
+    return Material(
       color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: () => context.go(module.route),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D2137).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D2137), Color(0xFF1A3A5C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D2137).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: Icon(module.icon, color: const Color(0xFF0D2137), size: 26),
+                child: Icon(module.icon, color: Colors.white, size: 26),
               ),
-              const SizedBox(height: 8),
-              Text(
-                module.label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  module.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0D2137),
+                    height: 1.3,
+                  ),
+                ),
               ),
             ],
           ),

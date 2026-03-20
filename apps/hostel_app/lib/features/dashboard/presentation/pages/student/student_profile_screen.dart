@@ -87,38 +87,80 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   Widget _buildHeader(StudentProfileProvider profile) {
     return Container(
       width: double.infinity,
-      color: const Color(0xFF0D2137),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0D2137), Color(0xFF1E4080)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: const Color(0xFF009688),
-            child: Text(
-              profile.displayName.isNotEmpty ? profile.displayName[0].toUpperCase() : 'S',
-              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF009688), width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF009688).withValues(alpha: 0.4),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 42,
+                  backgroundColor: const Color(0xFF009688),
+                  child: Text(
+                    profile.displayName.isNotEmpty ? profile.displayName[0].toUpperCase() : 'S',
+                    style: const TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             profile.displayName,
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
+            ),
           ),
           const SizedBox(height: 4),
-          Text(
-            profile.rollNumber,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
+              profile.rollNumber,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF009688),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
               profile.programme,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
             ),
           ),

@@ -381,12 +381,36 @@ class _ApplyLeaveDialogState extends State<_ApplyLeaveDialog> {
           ),
         ),
       ),
+      actionsAlignment: MainAxisAlignment.center,
+      actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       actions: [
-        OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-        FilledButton(
-          onPressed: _submit,
-          style: FilledButton.styleFrom(backgroundColor: _kNavy),
-          child: const Text('Apply Leave'),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0D2137),
+                  side: const BorderSide(color: Color(0xFF0D2137)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D2137),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Apply Leave'),
+              ),
+            ),
+          ],
         ),
       ],
     );

@@ -72,104 +72,133 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
                 constraints: const BoxConstraints(maxWidth: 680),
                 child: Card(
                   elevation: 0,
+                  clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Complaint Form',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.w700),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF0D2137), Color(0xFF1A3A5C)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Tell us what issue you are facing.',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
                           ),
-                          const SizedBox(height: 20),
-                          TextFormField(
-                            controller: _titleController,
-                            decoration: const InputDecoration(
-                              labelText: 'Title',
-                              hintText: 'Short summary of the complaint',
-                              prefixIcon: Icon(Icons.title),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.report_problem_rounded, color: Colors.white, size: 24),
                             ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter a title';
-                              }
-                              if (value.trim().length < 4) {
-                                return 'Title should be at least 4 characters';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _descriptionController,
-                            minLines: 4,
-                            maxLines: 6,
-                            decoration: const InputDecoration(
-                              labelText: 'Description',
-                              hintText: 'Describe the issue in detail',
-                              alignLabelWithHint: true,
-                              prefixIcon: Icon(Icons.description),
+                            const SizedBox(width: 14),
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Submit Complaint',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                Text('Tell us what issue you are facing',
+                                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              ],
                             ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter a description';
-                              }
-                              if (value.trim().length < 10) {
-                                return 'Description should be at least 10 characters';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                          if (controller.errorMessage != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Text(
-                                controller.errorMessage!,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                  fontWeight: FontWeight.w600,
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _titleController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Title',
+                                  hintText: 'Short summary of the complaint',
+                                  prefixIcon: Icon(Icons.title),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter a title';
+                                  }
+                                  if (value.trim().length < 4) {
+                                    return 'Title should be at least 4 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _descriptionController,
+                                minLines: 4,
+                                maxLines: 6,
+                                decoration: const InputDecoration(
+                                  labelText: 'Description',
+                                  hintText: 'Describe the issue in detail',
+                                  alignLabelWithHint: true,
+                                  prefixIcon: Icon(Icons.description),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter a description';
+                                  }
+                                  if (value.trim().length < 10) {
+                                    return 'Description should be at least 10 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 24),
+                              if (controller.errorMessage != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    controller.errorMessage!,
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.error,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  onPressed: controller.isSubmitting
+                                      ? null
+                                      : () => _submit(controller),
+                                  icon: controller.isSubmitting
+                                      ? const SizedBox(
+                                          height: 16,
+                                          width: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.send_rounded),
+                                  label: Text(
+                                    controller.isSubmitting
+                                        ? 'Submitting...'
+                                        : 'Submit Complaint',
+                                  ),
                                 ),
                               ),
-                            ),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: controller.isSubmitting
-                                  ? null
-                                  : () => _submit(controller),
-                              icon: controller.isSubmitting
-                                  ? const SizedBox(
-                                      height: 16,
-                                      width: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.send_rounded),
-                              label: Text(
-                                controller.isSubmitting
-                                    ? 'Submitting...'
-                                    : 'Submit Complaint',
-                              ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),

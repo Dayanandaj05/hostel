@@ -104,12 +104,19 @@ class _AdminActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
@@ -119,33 +126,63 @@ class _AdminActionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: scheme.primaryContainer,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D2137), Color(0xFF1E4080)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(13),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D2137).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: scheme.onPrimaryContainer),
+                child: Icon(icon, color: Colors.white, size: 22),
               ),
               const SizedBox(height: 14),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: Color(0xFF0D2137),
+                ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
               const Spacer(),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: scheme.primary,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D2137).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Open', style: TextStyle(fontSize: 11, color: Color(0xFF0D2137), fontWeight: FontWeight.w600)),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF0D2137)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
