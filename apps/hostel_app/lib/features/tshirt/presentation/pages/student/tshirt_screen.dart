@@ -124,14 +124,65 @@ class _TShirtScreenState extends State<TShirtScreen> {
                 // Type selector
                 const Text('Select Type', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2137))),
                 const SizedBox(height: 10),
-                ...(_types.map((type) => RadioListTile<String>(
-                  value: type,
-                  groupValue: _selectedType,
-                  title: Text(type),
-                  activeColor: const Color(0xFF009688),
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (v) => setState(() => _selectedType = v!),
-                ))),
+                    ...(_types.map((type) => InkWell(
+                      onTap: () => setState(() => _selectedType = type),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedType == type 
+                              ? const Color(0xFF0D2137).withValues(alpha: 0.05) 
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _selectedType == type 
+                                ? const Color(0xFF0D2137) 
+                                : Colors.grey.shade300,
+                            width: _selectedType == type ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _selectedType == type 
+                                      ? const Color(0xFF0D2137) 
+                                      : Colors.grey.shade400,
+                                  width: 2,
+                                ),
+                              ),
+                              child: _selectedType == type 
+                                  ? Center(
+                                      child: Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Color(0xFF0D2137),
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              type,
+                              style: TextStyle(
+                                fontWeight: _selectedType == type 
+                                    ? FontWeight.bold 
+                                    : FontWeight.normal,
+                                color: const Color(0xFF0D2137),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ))),
                 const SizedBox(height: 16),
 
                 // Size selector

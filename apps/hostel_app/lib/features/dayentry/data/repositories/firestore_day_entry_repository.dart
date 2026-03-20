@@ -1,6 +1,5 @@
 // lib/features/dayentry/data/repositories/firestore_day_entry_repository.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../services/storage/firestore_service.dart';
 import '../../domain/entities/day_entry_model.dart';
 import '../../domain/repositories/day_entry_repository.dart';
