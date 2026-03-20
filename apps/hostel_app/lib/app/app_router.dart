@@ -21,6 +21,8 @@ import '../features/tokens/presentation/pages/student/book_token_screen.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
 import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
 import '../features/dayentry/presentation/pages/student/day_entry_screen.dart';
+import '../features/dashboard/presentation/pages/student/student_profile_screen.dart';
+import '../features/dashboard/presentation/pages/student/student_contact_screen.dart';
 
 abstract class AppRouter {
   static GoRouter build(AuthProviderController authProvider) {
@@ -123,10 +125,7 @@ abstract class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.studentProfile,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Profile',
-            description: 'View your student profile details.',
-          ),
+          builder: (_, __) => const StudentProfileScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentMess,
@@ -144,10 +143,7 @@ abstract class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.studentContact,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Contact',
-            description: 'Contact the hostel office.',
-          ),
+          builder: (_, __) => const StudentContactScreen(),
         ),
         GoRoute(
           path: AppRoutes.wardenHome,
