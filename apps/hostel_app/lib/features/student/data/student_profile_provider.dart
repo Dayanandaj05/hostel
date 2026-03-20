@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class StudentProfileProvider extends ChangeNotifier {
@@ -68,6 +69,31 @@ class StudentProfileProvider extends ChangeNotifier {
   String get address => profileData?['address'] as String? ?? '--';
   String get primaryMobile => profileData?['primaryMobile'] as String? ?? '--';
   String get secondaryMobile => profileData?['secondaryMobile'] as String? ?? '--';
+  String get bloodGroup => profileData?['bloodGroup'] as String? ?? '--';
+
+  Future<void> updateProfile({
+    String? primaryMobile,
+    String? secondaryMobile,
+    String? address,
+    String? bloodGroup,
+  }) async {
+    if (profileData == null) return;
+    
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final updates = <String, dynamic>{
+      if (primaryMobile != null) 'primaryMobile': primaryMobile,
+      if (secondaryMobile != null) 'secondaryMobile': secondaryMobile,
+      if (address != null) 'address': address,
+      if (bloodGroup != null) 'bloodGroup': bloodGroup,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (updates.isEmpty) return;
+    
+    await _firestore.collection('users').doc(uid).update(updates);
+  }
 
   @override
   void dispose() {

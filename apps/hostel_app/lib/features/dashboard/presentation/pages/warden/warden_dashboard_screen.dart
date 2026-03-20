@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -141,51 +142,66 @@ class WardenDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildActionGrid(BuildContext context) {
-    final actions = [
-      const _WardenAction(
-        'Leave Requests',
-        'Approve or reject student leave applications',
-        Icons.pending_actions_rounded,
-        AppRoutes.wardenLeaveRequests,
-      ),
-      const _WardenAction(
-        'Complaints',
-        'Manage and resolve student complaints',
-        Icons.report_problem_rounded,
-        AppRoutes.wardenComplaints,
-      ),
-      const _WardenAction(
-        'Post Notices',
-        'Broadcast announcements to students',
-        Icons.campaign_rounded,
-        AppRoutes.wardenNotices,
-      ),
-    ];
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final cols = constraints.maxWidth >= 800 ? 3 : constraints.maxWidth >= 500 ? 2 : 1;
-        return GridView.builder(
+        
+        return GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: actions.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: cols,
-            mainAxisSpacing: 14,
-            crossAxisSpacing: 14,
-            childAspectRatio: 1.3,
-          ),
-          itemBuilder: (context, i) {
-            final a = actions[i];
-            return _buildActionCard(context, a);
-          },
+          crossAxisCount: cols,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: 1.3,
+          children: [
+            _buildActionCard(
+              context,
+              'Leave Requests',
+              'Review student leave applications',
+              Icons.pending_actions_rounded,
+              AppRoutes.wardenLeaveRequests,
+              FirebaseFirestore.instance.collection('leave_requests').where('status', isEqualTo: 'pending').snapshots(),
+            ),
+            _buildActionCard(
+              context,
+              'Complaints',
+              'Manage and resolve student complaints',
+              Icons.report_problem_rounded,
+              AppRoutes.wardenComplaints,
+              FirebaseFirestore.instance.collection('complaints').where('status', isEqualTo: 'pending').snapshots(),
+            ),
+            _buildActionCard(
+              context,
+              'Post Notices',
+              'Broadcast announcements',
+              Icons.campaign_rounded,
+              AppRoutes.wardenNotices,
+              null, // Optional: notices don't strictly need a "pending" badge
+            ),
+            _buildActionCard(
+              context,
+              'Mess Applications',
+              'Review North Indian requests',
+              Icons.restaurant_rounded,
+              AppRoutes.wardenMessApplications,
+              FirebaseFirestore.instance.collection('mess_applications').where('status', isEqualTo: 'pending').snapshots(),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildActionCard(BuildContext context, _WardenAction action) {
+  Widget _buildActionCard(
+    BuildContext context,
+    String title,
+    String subtitle,
+    IconData icon,
+    String route,
+    Stream<QuerySnapshot>? stream,
+  ) {
     final scheme = Theme.of(context).colorScheme;
+    
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -195,24 +211,49 @@ class WardenDashboardScreen extends StatelessWidget {
       color: Colors.white,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.go(action.route),
+        onTap: () => context.go(route),
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(action.icon, color: scheme.onPrimaryContainer, size: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: scheme.onPrimaryContainer, size: 24),
+                  ),
+                  if (stream != null)
+                    StreamBuilder<QuerySnapshot>(
+                      stream: stream,
+                      builder: (context, snapshot) {
+                        final count = snapshot.data?.docs.length ?? 0;
+                        if (count == 0) return const SizedBox.shrink();
+                        
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      },
+                    ),
+                ],
               ),
               const SizedBox(height: 14),
               Text(
-                action.title,
+                title,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -221,13 +262,15 @@ class WardenDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                action.subtitle,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                subtitle,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const Spacer(),
               Align(
                 alignment: Alignment.bottomRight,
-                child: Icon(Icons.arrow_forward_rounded, color: scheme.primary, size: 20),
+                child: Icon(Icons.arrow_forward_rounded, color: scheme.primary, size: 18),
               ),
             ],
           ),
@@ -237,10 +280,3 @@ class WardenDashboardScreen extends StatelessWidget {
   }
 }
 
-class _WardenAction {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final String route;
-  const _WardenAction(this.title, this.subtitle, this.icon, this.route);
-}

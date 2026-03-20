@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -63,13 +65,17 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = AuthProviderController.of(context);
+    final userId = auth.user?.uid;
+
     return Consumer<ComplaintController>(
       builder: (context, controller, _) {
         return Scaffold(
+          backgroundColor: const Color(0xFFF5F6FA),
           appBar: AppBar(
             backgroundColor: const Color(0xFF0D2137),
             foregroundColor: Colors.white,
-            title: const Text('Submit Complaint'),
+            title: const Text('My Complaints'),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_rounded),
               onPressed: () => context.go(AppRoutes.studentHome),
@@ -81,147 +87,225 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
               ),
             ],
           ),
-          body: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
-                child: Card(
-                  elevation: 0,
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF0D2137), Color(0xFF1A3A5C)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(20),
-                            topRight: Radius.circular(20),
-                          ),
-                        ),
-                        child: Row(
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _showComplaintForm(context, controller),
+            backgroundColor: const Color(0xFF0D2137),
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+          body: userId == null
+              ? const Center(child: Text('User not found'))
+              : StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('complaints')
+                      .where('userId', isEqualTo: userId)
+                      .orderBy('createdAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(Icons.report_problem_rounded, color: Colors.white, size: 24),
-                            ),
-                            const SizedBox(width: 14),
-                            const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Submit Complaint',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                                Text('Tell us what issue you are facing',
-                                  style: TextStyle(color: Colors.white70, fontSize: 12)),
-                              ],
+                            Icon(Icons.assignment_turned_in_outlined, size: 64, color: Colors.grey.shade300),
+                            const SizedBox(height: 16),
+                            const Text('No complaints submitted yet', style: TextStyle(color: Colors.grey)),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: () => _showComplaintForm(context, controller),
+                              child: const Text('SUBMIT FIRST COMPLAINT'),
                             ),
                           ],
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextFormField(
-                                controller: _titleController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Title',
-                                  hintText: 'Short summary of the complaint',
-                                  prefixIcon: Icon(Icons.title),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data() as Map<String, dynamic>;
+                        final status = data['status'] ?? 'pending';
+                        final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+                        final remarks = data['wardenRemarks'] as String?;
+
+                        return Card(
+                          elevation: 0,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        data['title'] ?? 'No Title',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      ),
+                                    ),
+                                    _buildStatusChip(status),
+                                  ],
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Please enter a title';
-                                  }
-                                  if (value.trim().length < 4) {
-                                    return 'Title should be at least 4 characters';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _descriptionController,
-                                minLines: 4,
-                                maxLines: 6,
-                                decoration: const InputDecoration(
-                                  labelText: 'Description',
-                                  hintText: 'Describe the issue in detail',
-                                  alignLabelWithHint: true,
-                                  prefixIcon: Icon(Icons.description),
+                                const SizedBox(height: 8),
+                                Text(
+                                  data['description'] ?? '',
+                                  style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Please enter a description';
-                                  }
-                                  if (value.trim().length < 10) {
-                                    return 'Description should be at least 10 characters';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 24),
-                              if (controller.errorMessage != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Text(
-                                    controller.errorMessage!,
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.error,
-                                      fontWeight: FontWeight.w600,
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      createdAt != null ? DateFormat('dd MMM yyyy, hh:mm a').format(createdAt) : 'Just now',
+                                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                                if (remarks != null && remarks.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withValues(alpha: 0.05),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Warden Remarks:',
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
+                                        const SizedBox(height: 4),
+                                        Text(remarks, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              SizedBox(
-                                width: double.infinity,
-                                child: FilledButton.icon(
-                                  onPressed: controller.isSubmitting
-                                      ? null
-                                      : () => _submit(controller),
-                                  icon: controller.isSubmitting
-                                      ? const SizedBox(
-                                          height: 16,
-                                          width: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.send_rounded),
-                                  label: Text(
-                                    controller.isSubmitting
-                                        ? 'Submitting...'
-                                        : 'Submit Complaint',
-                                  ),
-                                ),
-                              ),
-                            ],
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
+                        );
+                      },
+                    );
+                  },
                 ),
-              ),
-            ),
-          ),
         );
       },
     );
+  }
+
+  Widget _buildStatusChip(String status) {
+    Color color;
+    String label;
+    switch (status) {
+      case 'resolved':
+        color = Colors.green;
+        label = 'RESOLVED';
+      case 'in_progress':
+        color = Colors.blue;
+        label = 'IN PROGRESS';
+      default:
+        color = Colors.amber.shade700;
+        label = 'PENDING';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 10),
+      ),
+    );
+  }
+
+  void _showComplaintForm(BuildContext context, ComplaintController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('New Complaint', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    prefixIcon: Icon(Icons.title),
+                  ),
+                  validator: (val) => (val?.isEmpty ?? true) ? 'Please enter a title' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    prefixIcon: Icon(Icons.description),
+                    alignLabelWithHint: true,
+                  ),
+                  validator: (val) => (val?.isEmpty ?? true) ? 'Please enter a description' : null,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: controller.isSubmitting ? null : () => _submitAndClose(context, controller),
+                    child: controller.isSubmitting
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('SUBMIT COMPLAINT'),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitAndClose(BuildContext context, ComplaintController controller) async {
+    await _submit(controller);
+    if (context.mounted && controller.errorMessage == null) {
+      Navigator.pop(context);
+    }
   }
 }

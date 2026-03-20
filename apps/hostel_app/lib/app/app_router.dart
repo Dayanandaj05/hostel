@@ -6,6 +6,7 @@ import 'app_routes.dart';
 import '../features/auth/domain/entities/user_model.dart';
 import '../features/auth/presentation/controllers/auth_provider_controller.dart';
 import '../features/auth/presentation/pages/common/login_screen.dart';
+import '../features/auth/presentation/pages/common/splash_screen.dart';
 import '../features/complaints/domain/repositories/complaint_repository.dart';
 import '../features/complaints/presentation/controllers/complaint_controller.dart';
 import '../features/complaints/presentation/pages/student/complaint_submission_screen.dart';
@@ -28,9 +29,11 @@ import '../features/dashboard/presentation/pages/student/student_room_screen.dar
 import '../features/dashboard/presentation/pages/student/student_notices_screen.dart';
 import '../features/dashboard/presentation/pages/student/mess_application_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_dashboard_screen.dart';
+import '../features/dashboard/presentation/pages/warden/warden_mess_applications_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_leave_requests_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_notice_screen.dart';
 import '../features/tokens/presentation/pages/student/my_tokens_screen.dart';
+import '../features/dashboard/presentation/pages/student/student_fees_screen.dart';
 import '../features/tshirt/presentation/pages/student/tshirt_list_screen.dart';
 
 abstract class AppRouter {
@@ -79,7 +82,7 @@ abstract class AppRouter {
       routes: [
         GoRoute(
           path: AppRoutes.splash,
-          builder: (_, __) => const _SplashPage(),
+          builder: (_, __) => const SplashScreen(),
         ),
         GoRoute(
           path: AppRoutes.login,
@@ -151,10 +154,7 @@ abstract class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.studentFees,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Fees',
-            description: 'View hostel fee details and payment status.',
-          ),
+          builder: (_, __) => const StudentFeesScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentContact,
@@ -167,6 +167,10 @@ abstract class AppRouter {
         GoRoute(
           path: AppRoutes.wardenLeaveRequests,
           builder: (_, __) => const WardenLeaveRequestsScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.wardenMessApplications,
+          builder: (_, __) => const WardenMessApplicationsScreen(),
         ),
         GoRoute(
           path: AppRoutes.wardenComplaints,
@@ -214,30 +218,6 @@ abstract class AppRouter {
   }
 }
 
-class _SplashPage extends StatelessWidget {
-  const _SplashPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.home, size: 64),
-            const SizedBox(height: 16),
-            Text(
-              'Hostel Management',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 32),
-            const CircularProgressIndicator(),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _UnauthorizedPage extends StatelessWidget {
   const _UnauthorizedPage();

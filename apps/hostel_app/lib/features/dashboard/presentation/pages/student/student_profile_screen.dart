@@ -27,33 +27,38 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0D2137),
-        foregroundColor: Colors.white,
-        title: const Text('My Profile'),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => context.go(AppRoutes.studentHome),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home_rounded),
-            onPressed: () => context.go(AppRoutes.studentHome),
-          ),
-        ],
-      ),
-      body: Consumer<StudentProfileProvider>(
-        builder: (context, profile, _) {
-          if (profile.isLoading && profile.profileData == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (profile.error != null) {
-            return Center(child: Text(profile.error!));
-          }
+    return Consumer<StudentProfileProvider>(
+      builder: (context, profile, _) {
+        if (profile.isLoading && profile.profileData == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (profile.error != null) {
+          return Center(child: Text(profile.error!));
+        }
 
-          return SingleChildScrollView(
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF0D2137),
+            foregroundColor: Colors.white,
+            title: const Text('My Profile'),
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_rounded),
+              onPressed: () => context.go(AppRoutes.studentHome),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.home_rounded),
+                onPressed: () => context.go(AppRoutes.studentHome),
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _showEditProfileSheet(context, profile),
+            backgroundColor: const Color(0xFF009688),
+            child: const Icon(Icons.edit, color: Colors.white),
+          ),
+          body: SingleChildScrollView(
             child: Column(
               children: [
                 _buildHeader(profile),
@@ -81,6 +86,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                         _InfoRow('Father Name', profile.fatherName, Icons.person_rounded, copyable: false),
                         _InfoRow('Primary Mobile', profile.primaryMobile, Icons.phone_android_rounded, copyable: true),
                         _InfoRow('Secondary Mobile', profile.secondaryMobile, Icons.phone_android_rounded, copyable: true),
+                        _InfoRow('Blood Group', profile.bloodGroup, Icons.bloodtype_rounded, copyable: false),
                       ]),
                       _buildSection('Address', [
                         _InfoRow('Address', profile.address, Icons.location_on_rounded, copyable: false),
@@ -90,9 +96,20 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                 ),
               ],
             ),
-          );
-        },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditProfileSheet(BuildContext context, StudentProfileProvider profile) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) => _EditProfileBottomSheet(profile: profile),
     );
   }
 
@@ -257,6 +274,149 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   }
 }
 
+class _EditProfileBottomSheet extends StatefulWidget {
+  final StudentProfileProvider profile;
+  const _EditProfileBottomSheet({required this.profile});
+
+  @override
+  State<_EditProfileBottomSheet> createState() => _EditProfileBottomSheetState();
+}
+
+class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _primaryMobileController;
+  late TextEditingController _secondaryMobileController;
+  late TextEditingController _addressController;
+  String? _bloodGroup;
+  bool _isLoading = false;
+
+  final List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  @override
+  void initState() {
+    super.initState();
+    _primaryMobileController = TextEditingController(text: widget.profile.primaryMobile == '--' ? '' : widget.profile.primaryMobile);
+    _secondaryMobileController = TextEditingController(text: widget.profile.secondaryMobile == '--' ? '' : widget.profile.secondaryMobile);
+    _addressController = TextEditingController(text: widget.profile.address == '--' ? '' : widget.profile.address);
+    _bloodGroup = _bloodGroups.contains(widget.profile.bloodGroup) ? widget.profile.bloodGroup : null;
+  }
+
+  @override
+  void dispose() {
+    _primaryMobileController.dispose();
+    _secondaryMobileController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    setState(() => _isLoading = true);
+    try {
+      await widget.profile.updateProfile(
+        primaryMobile: _primaryMobileController.text.trim(),
+        secondaryMobile: _secondaryMobileController.text.trim(),
+        address: _addressController.text.trim(),
+        bloodGroup: _bloodGroup,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 20,
+        right: 20,
+        top: 20,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                   const Text('Edit Profile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                   IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _primaryMobileController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Primary Mobile',
+                  prefixIcon: Icon(Icons.phone_android_rounded),
+                ),
+                validator: (val) => (val?.length ?? 0) < 10 ? 'Enter valid mobile number' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _secondaryMobileController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Secondary Mobile',
+                  prefixIcon: Icon(Icons.phone_android_rounded),
+                ),
+                validator: (val) => (val != null && val.isNotEmpty && val.length < 10) ? 'Enter valid mobile number' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _bloodGroup,
+                items: _bloodGroups.map((bg) => DropdownMenuItem(value: bg, child: Text(bg))).toList(),
+                onChanged: (val) => setState(() => _bloodGroup = val),
+                decoration: const InputDecoration(
+                  labelText: 'Blood Group',
+                  prefixIcon: Icon(Icons.bloodtype_rounded),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _addressController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Address',
+                  prefixIcon: Icon(Icons.location_on_rounded),
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isLoading ? null : _save,
+                  child: _isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('SAVE UPDATES'),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoRow {
   final String label;
   final String value;
@@ -264,3 +424,4 @@ class _InfoRow {
   final bool copyable;
   const _InfoRow(this.label, this.value, this.icon, {this.copyable = false});
 }
+

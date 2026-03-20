@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hostel_app/services/notifications/notification_service.dart';
 
 import '../../domain/entities/user_model.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -69,6 +70,10 @@ class AuthProviderController extends ChangeNotifier {
       // complete state (isAuthenticated && role != null) in one go.
       if (credential.user != null) {
         _user = await _authService.getCurrentUserModel();
+        if (_user != null) {
+          await NotificationService.updateToken(_user!.uid);
+          await NotificationService.subscribeToRole(_user!.role.name);
+        }
       }
       return credential.user != null;
     } on AuthServiceException catch (e) {
@@ -101,6 +106,10 @@ class AuthProviderController extends ChangeNotifier {
       // complete state (isAuthenticated && role != null) in one go.
       if (credential.user != null) {
         _user = await _authService.getCurrentUserModel();
+        if (_user != null) {
+          await NotificationService.updateToken(_user!.uid);
+          await NotificationService.subscribeToRole(_user!.role.name);
+        }
       }
       return credential.user != null && _user != null;
     } on AuthServiceException catch (e) {
@@ -120,6 +129,7 @@ class AuthProviderController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await NotificationService.unsubscribeAll();
       await _authService.signOut();
       _user = null;
     } catch (e) {

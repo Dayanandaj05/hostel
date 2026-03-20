@@ -26,6 +26,8 @@ import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_
 import 'package:hostel_app/features/student/data/student_profile_provider.dart';
 import 'package:hostel_app/services/storage/firestore_service.dart';
 
+import 'package:hostel_app/services/notifications/notification_service.dart';
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
@@ -51,7 +53,8 @@ Future<void> main() async {
   final firebaseReady = await _initializeFirebaseSafely();
 
   if (firebaseReady) {
-    await _configureFirebaseMessaging();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await NotificationService.initialize();
   }
 
   runApp(HostelManagementBootstrap(firebaseReady: firebaseReady));
@@ -67,35 +70,6 @@ Future<bool> _initializeFirebaseSafely() async {
     debugPrint('Firebase init failed: $e');
     return false;
   }
-}
-
-Future<void> _configureFirebaseMessaging() async {
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  final firebaseMessaging = FirebaseMessaging.instance;
-  await firebaseMessaging.setAutoInitEnabled(true);
-
-  await firebaseMessaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-    announcement: false,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
-  );
-
-  FirebaseMessaging.onMessage.listen((message) {
-    if (kDebugMode) {
-      debugPrint('Foreground FCM: ${message.messageId}');
-    }
-  });
-
-  FirebaseMessaging.onMessageOpenedApp.listen((message) {
-    if (kDebugMode) {
-      debugPrint('Opened from FCM: ${message.messageId}');
-    }
-  });
 }
 
 class HostelManagementBootstrap extends StatefulWidget {

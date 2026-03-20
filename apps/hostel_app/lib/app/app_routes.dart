@@ -21,6 +21,7 @@ abstract class AppRoutes {
 
   static const wardenHome = '/warden';
   static const wardenLeaveRequests = '/warden/leave-requests';
+  static const wardenMessApplications = '/warden/mess-applications';
   static const wardenComplaints = '/warden/complaints';
   static const wardenNotices = '/warden/notices';
 

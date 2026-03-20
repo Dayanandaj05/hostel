@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
@@ -148,78 +146,6 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
     }
   }
 
-  Future<void> _seedStudent(AuthProviderController auth) async {
-    setState(() => _error = '⏳ Seeding student account...');
-    const email = '25mx308@psgtech.hostel';
-    const password = 'password123';
-    String? uid;
-    try {
-      final cred = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
-      uid = cred.user?.uid;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' ||
-          e.code == 'invalid-credential' ||
-          e.code == 'INVALID_LOGIN_CREDENTIALS') {
-        try {
-          final cred = await FirebaseAuth.instance
-              .createUserWithEmailAndPassword(email: email, password: password);
-          uid = cred.user?.uid;
-        } catch (ce) {
-          if (mounted) setState(() => _error = 'Seed failed: $ce');
-          return;
-        }
-      } else {
-        if (mounted) setState(() => _error = 'Seed failed: ${e.message}');
-        return;
-      }
-    }
-    if (uid == null) {
-      if (mounted) setState(() => _error = 'Seed failed: no UID');
-      return;
-    }
-    await FirebaseFirestore.instance.collection('users').doc(uid).set({
-      'name': 'Test Student',
-      'email': email,
-      'role': 'student',
-      'rollNumber': '25MX308',
-      'programme': 'MASTER OF COMPUTER APPLICATIONS',
-      'yearOfStudy': '1st Year, 2025 Batch',
-      'contactPhone': '+91 9876543210',
-      'fatherName': 'PSG Father',
-      'address': 'PSG Hostel, Avinashi Road, Coimbatore',
-      'primaryMobile': '+91 9876543210',
-      'secondaryMobile': '+91 9876543211',
-      'establishment': 50000,
-      'deposit': 5000,
-      'balance': 39447,
-      'hostelName': 'Main Hostel',
-      'blockName': 'G3 Block',
-      'roomType': 'New 4 In 1 Room',
-      'floor': 'Fifth Floor',
-      'roomNumber': 'G3-621',
-      'joiningDate': '04-AUG-25',
-      'messName': 'G Mess',
-      'messType': 'South Indian',
-      'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-    if (!mounted) return;
-    final success = await auth.signInWithEmailAndPassword(
-      email: email, password: password);
-    if (mounted) {
-      if (success) {
-        _rollController.text = '25MX308';
-        _passwordController.text = 'password123';
-        setState(() => _error = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Student account seeded!')),
-        );
-      } else {
-        setState(() => _error = auth.errorMessage ?? 'Seed OK but login failed.');
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -268,12 +194,6 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
                     if (_error != null) _errorBox(_error!),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: auth.isLoading ? null : () => _seedStudent(auth),
-                child: const Text('Seed Test Student (25MX308 / password123)',
-                    style: TextStyle(fontSize: 12)),
               ),
               _helpText(),
             ],
@@ -341,12 +261,6 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
 
   bool get _isAdmin => widget.role == _StaffRole.admin;
   String get _roleLabel => _isAdmin ? 'Admin' : 'Warden';
-  String get _roleValue => _isAdmin ? 'admin' : 'warden';
-  // Seed credentials
-  String get _seedEmail =>
-      _isAdmin ? 'admin@psgtech.hostel' : 'warden@psgtech.hostel';
-  String get _seedPassword => _isAdmin ? 'admin123456' : 'warden123456';
-  String get _seedName => _isAdmin ? 'Hostel Admin' : 'Block Warden';
 
   Future<void> _signIn(AuthProviderController auth) async {
     if (!_formKey.currentState!.validate()) return;
@@ -377,57 +291,6 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
     }
   }
 
-  Future<void> _seedAccount(AuthProviderController auth) async {
-    setState(() => _error = '⏳ Seeding $_roleLabel account...');
-    String? uid;
-    try {
-      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _seedEmail, password: _seedPassword);
-      uid = cred.user?.uid;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' ||
-          e.code == 'invalid-credential' ||
-          e.code == 'INVALID_LOGIN_CREDENTIALS') {
-        try {
-          final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-              email: _seedEmail, password: _seedPassword);
-          uid = cred.user?.uid;
-        } catch (ce) {
-          if (mounted) setState(() => _error = 'Seed failed: $ce');
-          return;
-        }
-      } else {
-        if (mounted) setState(() => _error = 'Seed failed: ${e.message}');
-        return;
-      }
-    }
-    if (uid == null) {
-      if (mounted) setState(() => _error = 'Seed failed: no UID');
-      return;
-    }
-    await FirebaseFirestore.instance.collection('users').doc(uid).set({
-      'name': _seedName,
-      'email': _seedEmail,
-      'role': _roleValue,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-    if (!mounted) return;
-    final success = await auth.signInWithEmailAndPassword(
-        email: _seedEmail, password: _seedPassword);
-    if (mounted) {
-      if (success) {
-        _emailController.text = _seedEmail;
-        _passwordController.text = _seedPassword;
-        setState(() => _error = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ $_roleLabel account seeded!')),
-        );
-      } else {
-        setState(() =>
-            _error = auth.errorMessage ?? 'Seed OK but login failed.');
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -520,20 +383,6 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
                         label: 'Sign In as $_roleLabel'),
                     if (_error != null) _errorBox(_error!),
                   ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Seed button (dev helper)
-              OutlinedButton.icon(
-                onPressed: auth.isLoading ? null : () => _seedAccount(auth),
-                icon: const Icon(Icons.build_circle_outlined, size: 16),
-                label: Text(
-                    'Seed Test $_roleLabel ($_seedEmail / $_seedPassword)',
-                    style: const TextStyle(fontSize: 11)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey.shade600,
-                  side: BorderSide(color: Colors.grey.shade300),
-                  minimumSize: const Size(double.infinity, 36),
                 ),
               ),
               _helpText(),

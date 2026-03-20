@@ -1,79 +1,77 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-    
-    function hasRole(role) {
-      return isSignedIn() && getUserData().role == role;
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    // --- Collections ---
+    function isStudent() { return isSignedIn() && userRole() == 'student'; }
+    function isWarden()  { return isSignedIn() && userRole() == 'warden';  }
+    function isAdmin()   { return isSignedIn() && userRole() == 'admin';   }
+    function isStaff()   { return isWarden() || isAdmin(); }
 
     // Users
     match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || hasRole('admin') || hasRole('warden'));
-      allow write: if hasRole('admin');
+      allow read:  if isSignedIn() && (request.auth.uid == userId || isStaff());
+      allow write: if isAdmin();
     }
 
     // Leave Requests
-    match /leave_requests/{requestId} {
-      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || hasRole('warden') || hasRole('admin'));
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update: if isSignedIn() && (hasRole('warden') || hasRole('admin'));
+    match /leave_requests/{id} {
+      allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
+      allow update: if isStaff();
+      allow delete: if isStudent() && resource.data.userId == request.auth.uid;
     }
 
     // Food Tokens
-    match /food_tokens/{tokenId} {
-      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || hasRole('admin'));
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.studentId == request.auth.uid || hasRole('admin'));
+    match /food_tokens/{id} {
+      allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
+      allow update: if isStaff();
     }
 
     // T-Shirt Orders
-    match /tshirt_orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || hasRole('admin'));
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+    match /tshirt_orders/{id} {
+      allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
     }
 
     // Notices
-    match /notices/{noticeId} {
-      allow read: if isSignedIn();
-      allow write: if hasRole('admin') || hasRole('warden');
+    match /notices/{id} {
+      allow read:  if isSignedIn();
+      allow write: if isStaff();
     }
 
-    // Settings (Hostel Day config)
-    match /settings/{settingId} {
-      allow read: if isSignedIn();
-      allow write: if hasRole('admin');
+    // Settings (Hostel Day config etc.)
+    match /settings/{id} {
+      allow read:  if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    // Day Entries (Hostel Day Registrations)
-    match /day_entries/{entryId} {
-      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || hasRole('admin'));
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+    // Hostel Day Registrations
+    match /day_entry_registrations/{id} {
+      allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
     }
 
     // Complaints
-    match /complaints/{complaintId} {
-      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || hasRole('warden') || hasRole('admin'));
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update: if isSignedIn() && (hasRole('warden') || hasRole('admin'));
+    match /complaints/{id} {
+      allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
+      allow update: if isStaff();
     }
 
     // Mess Applications
-    match /mess_applications/{appId} {
-      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || hasRole('warden') || hasRole('admin'));
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update: if isSignedIn() && (hasRole('warden') || hasRole('admin'));
+    match /mess_applications/{id} {
+      allow read:   if isSignedIn() && (resource.data.studentId == request.auth.uid || isStaff());
+      allow create: if isStudent() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isStaff();
     }
   }
 }
