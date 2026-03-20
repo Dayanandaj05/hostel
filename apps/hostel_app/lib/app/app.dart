@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../features/auth/presentation/controllers/auth_provider_controller.dart';
 import '../core/theme/theme.dart';
 import 'app_router.dart';

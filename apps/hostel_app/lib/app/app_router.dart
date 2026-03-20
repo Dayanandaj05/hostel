@@ -20,6 +20,7 @@ import '../features/dashboard/presentation/pages/student/student_dashboard_scree
 import '../features/tokens/presentation/pages/student/book_token_screen.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
 import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
+import '../features/dayentry/presentation/pages/student/day_entry_screen.dart';
 
 abstract class AppRouter {
   static GoRouter build(AuthProviderController authProvider) {
@@ -115,6 +116,10 @@ abstract class AppRouter {
         GoRoute(
           path: AppRoutes.studentTShirt,
           builder: (context, state) => const TShirtScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.studentDayEntry,
+          builder: (_, __) => const DayEntryScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentProfile,

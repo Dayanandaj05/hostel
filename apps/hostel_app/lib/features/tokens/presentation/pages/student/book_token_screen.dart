@@ -172,7 +172,7 @@ class _BookTokenScreenState extends State<BookTokenScreen> with SingleTickerProv
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? _kNavy.withValues(alpha: 0.05) : Colors.white,
+          color: isSelected ? _kNavy.withOpacity(0.05) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? _kNavy : Colors.grey.shade200,
@@ -181,7 +181,7 @@ class _BookTokenScreenState extends State<BookTokenScreen> with SingleTickerProv
           boxShadow: [
             if (!isSelected)
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
+                color: Colors.black.withOpacity(0.03),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -405,7 +405,7 @@ class _BookTokenScreenState extends State<BookTokenScreen> with SingleTickerProv
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _kNavy.withValues(alpha: 0.05),
+                    color: _kNavy.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(foodItem.emoji, style: const TextStyle(fontSize: 24)),

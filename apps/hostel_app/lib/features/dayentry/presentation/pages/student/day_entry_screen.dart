@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 import '../../../../student/data/student_profile_provider.dart';
-import '../../../dayentry/domain/entities/day_entry_model.dart';
-import '../../../dayentry/presentation/controllers/day_entry_controller.dart';
+import '../../../domain/entities/day_entry_model.dart';
+import '../../controllers/day_entry_controller.dart';
 
 class DayEntryScreen extends StatefulWidget {
   const DayEntryScreen({super.key});
@@ -450,7 +449,7 @@ class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProvid
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

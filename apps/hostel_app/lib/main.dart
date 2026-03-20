@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'package:hostel_app/app/app.dart';
 import 'package:hostel_app/core/auth/auth_session_provider.dart';
+import 'package:hostel_app/core/theme/theme.dart';
 import 'package:hostel_app/firebase_options.dart';
 import 'package:hostel_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
@@ -23,6 +24,7 @@ import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_contr
 import 'package:hostel_app/features/dayentry/data/repositories/firestore_day_entry_repository.dart';
 import 'package:hostel_app/features/dayentry/domain/repositories/day_entry_repository.dart';
 import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_controller.dart';
+import 'package:hostel_app/features/student/data/student_profile_provider.dart';
 import 'package:hostel_app/services/storage/firestore_service.dart';
 
 @pragma('vm:entry-point')
@@ -125,16 +127,44 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
         ChangeNotifierProvider<AuthSessionProvider>.value(value: _authSessionProvider),
       ],
       builder: (context, _) {
-        final firestore = widget.firebaseReady 
-            ? FirebaseFirestore.instance 
-            : null; // We'll handle nulls in service if needed, or just mock.
-            
-        final authService = AuthService(
-          firebaseAuth: widget.firebaseReady ? FirebaseAuth.instance : null as dynamic,
-          firestore: firestore as dynamic,
-        );
+        if (!widget.firebaseReady) {
+          final stubAuthService = AuthService(
+            firebaseAuth: null as dynamic,
+            firestore: null as dynamic,
+          );
+          return MultiProvider(
+            providers: [
+              Provider<AuthService>.value(value: stubAuthService),
+              ChangeNotifierProvider<AuthProviderController>(
+                create: (_) => AuthProviderController(stubAuthService)..initialize(),
+              ),
+            ],
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: 'Hostel Management System',
+              theme: AppTheme.light,
+              home: const Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('Firebase unavailable. Check your connection.'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
 
-        final firestoreService = FirestoreService(firestore as dynamic);
+        final firestore = FirebaseFirestore.instance;
+        final authService = AuthService(
+          firebaseAuth: FirebaseAuth.instance,
+          firestore: firestore,
+        );
+        final firestoreService = FirestoreService(firestore);
         final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
         final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
         final tshirtRepository = FirestoreTShirtRepository(firestoreService);
@@ -149,7 +179,7 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
               create: (_) => FirestoreComplaintRepository(firestoreService),
             ),
             ChangeNotifierProvider<StudentProfileProvider>(
-              create: (_) => StudentProfileProvider(firestore as dynamic),
+              create: (_) => StudentProfileProvider(firestore),
             ),
             ChangeNotifierProvider<LeaveRequestController>(
               create: (_) => LeaveRequestController(leaveRepository),
