@@ -101,31 +101,23 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
       ],
       builder: (context, _) {
         if (!widget.firebaseReady) {
-          final stubAuthService = AuthService(
-            firebaseAuth: null as dynamic,
-            firestore: null as dynamic,
-          );
-          return MultiProvider(
-            providers: [
-              Provider<AuthService>.value(value: stubAuthService),
-              ChangeNotifierProvider<AuthProviderController>(
-                create: (_) => AuthProviderController(stubAuthService)..initialize(),
-              ),
-            ],
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              title: 'Hostel Management System',
-              theme: AppTheme.light,
-              home: const Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.wifi_off, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('Firebase unavailable. Check your connection.'),
-                    ],
-                  ),
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Hostel Management System',
+            theme: AppTheme.light,
+            home: const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Firebase unavailable.\nCheck your connection.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
                 ),
               ),
             ),

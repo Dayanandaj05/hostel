@@ -60,7 +60,8 @@ class StudentProfileProvider extends ChangeNotifier {
   List<String> get messSupervisors =>
       (profileData?['messSupervisors'] as List?)?.cast<String>() ?? [];
   // true = North Indian opted, false = South Indian (default)
-  bool get isNorthIndianMess => messType.toLowerCase().contains('north');
+  bool get isNorthIndianMess =>
+      (profileData?['messType'] as String?)?.toLowerCase().contains('north') == true;
   int get establishment => (profileData?['establishment'] as num?)?.toInt() ?? 0;
   int get deposit => (profileData?['deposit'] as num?)?.toInt() ?? 0;
   int get balance => (profileData?['balance'] as num?)?.toInt() ?? 0;

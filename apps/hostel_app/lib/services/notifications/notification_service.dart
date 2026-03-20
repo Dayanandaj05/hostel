@@ -62,27 +62,25 @@ class NotificationService {
   }
 
   static Future<void> subscribeToRole(String role) async {
-    // Unsubscribe from others first to avoid cross-role notifications
-    await unsubscribeAll();
-    
-    final topic = switch (role.toLowerCase()) {
-      'student' => 'students',
-      'warden' => 'wardens',
-      'admin' => 'admins',
-      _ => null,
-    };
-
-    if (topic != null) {
-      await _fcm.subscribeToTopic(topic);
-      debugPrint('Subscribed to topic: $topic');
+    try {
+      await _fcm.subscribeToTopic('role_$role');
+      await _fcm.subscribeToTopic('all_residents');
+      debugPrint('Subscribed to topics: role_$role and all_residents');
+    } catch (e) {
+      debugPrint('FCM subscribe failed: $e');
     }
   }
 
   static Future<void> unsubscribeAll() async {
-    await _fcm.unsubscribeFromTopic('students');
-    await _fcm.unsubscribeFromTopic('wardens');
-    await _fcm.unsubscribeFromTopic('admins');
-    debugPrint('Unsubscribed from all roles');
+    try {
+      await _fcm.unsubscribeFromTopic('role_student');
+      await _fcm.unsubscribeFromTopic('role_warden');
+      await _fcm.unsubscribeFromTopic('role_admin');
+      await _fcm.unsubscribeFromTopic('all_residents');
+      debugPrint('Unsubscribed from all roles');
+    } catch (e) {
+      debugPrint('FCM unsubscribe failed: $e');
+    }
   }
 
   static Future<void> _showLocalNotification(RemoteMessage message) async {

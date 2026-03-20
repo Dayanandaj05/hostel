@@ -428,7 +428,8 @@ class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProvid
                     color: Color(0xFF0D2137))),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _selectedTimeSlot,
+                // ignore: deprecated_member_use
+                value: _selectedTimeSlot,
                 decoration: InputDecoration(
                   labelText: 'Session',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

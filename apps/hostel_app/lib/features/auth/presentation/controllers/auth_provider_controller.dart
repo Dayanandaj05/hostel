@@ -73,9 +73,11 @@ class AuthProviderController extends ChangeNotifier {
         if (_user != null) {
           await NotificationService.updateToken(_user!.uid);
           await NotificationService.subscribeToRole(_user!.role.name);
+        } else {
+          _errorMessage = 'Profile creation confirmed, but failed to fetch data. Try logging in.';
         }
       }
-      return credential.user != null;
+      return credential.user != null && _user != null;
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
       return false;
@@ -109,6 +111,8 @@ class AuthProviderController extends ChangeNotifier {
         if (_user != null) {
           await NotificationService.updateToken(_user!.uid);
           await NotificationService.subscribeToRole(_user!.role.name);
+        } else {
+          _errorMessage = 'User profile not found in database.';
         }
       }
       return credential.user != null && _user != null;
