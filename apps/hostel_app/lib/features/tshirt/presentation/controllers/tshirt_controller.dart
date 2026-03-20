@@ -1,48 +1,53 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../../domain/entities/tshirt_order_model.dart';
 import '../../domain/entities/tshirt_models.dart';
-import '../../domain/repositories/tshirt_repository.dart';
+import '../../data/repositories/firestore_tshirt_repository.dart';
 
 class TShirtController extends ChangeNotifier {
-  final TShirtRepository _repository;
-
   TShirtController(this._repository);
 
-  bool _isPlacingOrder = false;
-  bool _isLoadingOrders = false;
+  final FirestoreTShirtRepository _repository;
+
+  bool _isSubmitting = false;
+  bool _isLoading = false;
   String? _errorMessage;
   String? _successMessage;
-  List<TShirtOrder> _myOrders = [];
-  StreamSubscription? _orderSubscription;
+  List<TShirtOrderModel> _myOrders = [];
+  StreamSubscription? _subscription;
 
-  bool get isPlacingOrder => _isPlacingOrder;
-  bool get isLoadingOrders => _isLoadingOrders;
+  bool get isSubmitting => _isSubmitting;
+  bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
-  List<TShirtOrder> get myOrders => _myOrders;
+  List<TShirtOrderModel> get myOrders => _myOrders;
+
+  // UI Compatibility Aliases
+  bool get isPlacingOrder => _isSubmitting;
+  bool get isLoadingOrders => _isLoading;
 
   void startWatchingOrders(String userId) {
-    _isLoadingOrders = true;
+    _subscription?.cancel();
+    _isLoading = true;
     notifyListeners();
 
-    _orderSubscription?.cancel();
-    _orderSubscription = _repository.watchMyOrders(userId).listen(
+    _subscription = _repository.watchMyOrders(userId).listen(
       (orders) {
         _myOrders = orders;
-        _isLoadingOrders = false;
+        _isLoading = false;
         notifyListeners();
       },
-      onError: (e) {
-        _errorMessage = 'Failed to load orders: $e';
-        _isLoadingOrders = false;
+      onError: (_) {
+        _isLoading = false;
+        _errorMessage = 'Unable to load orders.';
         notifyListeners();
       },
     );
   }
 
-  void stopWatchingOrders() {
-    _orderSubscription?.cancel();
-    _orderSubscription = null;
+  void stopWatching() {
+    _subscription?.cancel();
+    _subscription = null;
   }
 
   Future<bool> placeOrder({
@@ -51,28 +56,32 @@ class TShirtController extends ChangeNotifier {
     required String size,
     required int quantity,
   }) async {
-    _isPlacingOrder = true;
+    _isSubmitting = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
 
+    const double pricePerUnit = 450.0; // Default price
+
     try {
-      final order = TShirtOrder(
+      final order = TShirtOrderModel(
         userId: userId,
-        styleId: style.id,
-        styleName: style.name,
+        type: style.name,
         size: size,
         quantity: quantity,
+        pricePerUnit: pricePerUnit,
+        totalPrice: pricePerUnit * quantity,
+        status: 'pending',
+        styleId: style.id,
       );
-
       await _repository.placeOrder(order);
       _successMessage = 'T-Shirt order placed successfully!';
       return true;
     } catch (e) {
-      _errorMessage = 'Failed to place order: $e';
+      _errorMessage = 'Failed to place order. Please try again.';
       return false;
     } finally {
-      _isPlacingOrder = false;
+      _isSubmitting = false;
       notifyListeners();
     }
   }
@@ -85,7 +94,7 @@ class TShirtController extends ChangeNotifier {
 
   @override
   void dispose() {
-    stopWatchingOrders();
+    stopWatching();
     super.dispose();
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hostel_app/app/app_routes.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
 import 'package:hostel_app/features/tokens/domain/entities/food_token_model.dart';
 import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
@@ -83,6 +85,13 @@ class _BookTokenScreenState extends State<BookTokenScreen> with SingleTickerProv
         backgroundColor: Colors.white,
         foregroundColor: _kNavy,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.list_alt_rounded),
+            tooltip: 'My Tokens',
+            onPressed: () => context.go(AppRoutes.studentMyTokens),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: _kNavy,

@@ -1,42 +1,31 @@
-import 'package:hostel_app/features/tshirt/domain/entities/tshirt_models.dart';
-import 'package:hostel_app/features/tshirt/domain/repositories/tshirt_repository.dart';
-import 'package:hostel_app/services/storage/firestore_service.dart';
+import '../../../../services/storage/firestore_service.dart';
+import '../../domain/entities/tshirt_order_model.dart';
 
-class FirestoreTShirtRepository implements TShirtRepository {
-  final FirestoreService _firestoreService;
-  final String _collection = 'tshirt_orders';
-
+class FirestoreTShirtRepository {
   FirestoreTShirtRepository(this._firestoreService);
 
-  @override
-  Future<void> placeOrder(TShirtOrder order) async {
-    final docRef = _firestoreService.collection(_collection).doc();
-    await _firestoreService.setDocument(
-      path: '$_collection/${docRef.id}',
-      data: order.toFirestore(),
-      merge: false,
-    );
+  final FirestoreService _firestoreService;
+  static const _collection = 'tshirt_orders';
+
+  Future<void> placeOrder(TShirtOrderModel order) async {
+    await _firestoreService.collection(_collection).add(order.toFirestore());
   }
 
-  @override
-  Stream<List<TShirtOrder>> watchMyOrders(String userId) {
+  Stream<List<TShirtOrderModel>> watchMyOrders(String userId) {
     return _firestoreService
         .collection(_collection)
         .where('userId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) {
-      final orders = snapshot.docs.map((doc) {
-        return TShirtOrder.fromFirestore(doc.data(), doc.id);
-      }).toList();
-
-      // Client-side sort by createdAt desc
-      orders.sort((a, b) {
-        if (a.createdAt == null) return -1;
-        if (b.createdAt == null) return 1;
-        return b.createdAt!.compareTo(a.createdAt!);
+        .map((snap) {
+      final list = snap.docs
+          .map((doc) => TShirtOrderModel.fromFirestore(doc))
+          .toList();
+      list.sort((a, b) {
+        final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
       });
-
-      return orders;
+      return list;
     });
   }
 }

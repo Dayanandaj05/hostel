@@ -23,6 +23,11 @@ import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
 import '../features/dayentry/presentation/pages/student/day_entry_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_profile_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_contact_screen.dart';
+import '../features/dashboard/presentation/pages/warden/warden_dashboard_screen.dart';
+import '../features/dashboard/presentation/pages/warden/warden_leave_requests_screen.dart';
+import '../features/dashboard/presentation/pages/warden/warden_notice_screen.dart';
+import '../features/tokens/presentation/pages/student/my_tokens_screen.dart';
+import '../features/tshirt/presentation/pages/student/tshirt_list_screen.dart';
 
 abstract class AppRouter {
   static GoRouter build(AuthProviderController authProvider) {
@@ -120,6 +125,14 @@ abstract class AppRouter {
           builder: (context, state) => const TShirtScreen(),
         ),
         GoRoute(
+          path: AppRoutes.studentMyTokens,
+          builder: (_, __) => const MyTokensScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.studentMyTShirts,
+          builder: (_, __) => const TShirtListScreen(),
+        ),
+        GoRoute(
           path: AppRoutes.studentDayEntry,
           builder: (_, __) => const DayEntryScreen(),
         ),
@@ -147,17 +160,11 @@ abstract class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.wardenHome,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Warden Dashboard',
-            description: 'Manage your hostel and students.',
-          ),
+          builder: (_, __) => const WardenDashboardScreen(),
         ),
         GoRoute(
           path: AppRoutes.wardenLeaveRequests,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Leave Requests',
-            description: 'Approve or reject student leave requests.',
-          ),
+          builder: (_, __) => const WardenLeaveRequestsScreen(),
         ),
         GoRoute(
           path: AppRoutes.wardenComplaints,
@@ -170,10 +177,7 @@ abstract class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.wardenNotices,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Post Notices',
-            description: 'Broadcast announcements to students.',
-          ),
+          builder: (_, __) => const WardenNoticeScreen(),
         ),
         GoRoute(
           path: AppRoutes.adminHome,

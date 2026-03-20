@@ -134,7 +134,6 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
         Text(
           title,
           style: const TextStyle(
-            bold: true,
             fontWeight: FontWeight.bold,
             color: Color(0xFF0D2137),
             fontSize: 15,

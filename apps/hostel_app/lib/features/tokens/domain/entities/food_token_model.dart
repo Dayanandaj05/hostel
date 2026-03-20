@@ -1,87 +1,109 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FoodItem {
+  final String id;
+  final String name;
+  final double price;
+  final String emoji;
+  final bool isVeg;
+
   const FoodItem({
     required this.id,
     required this.name,
     required this.price,
     required this.emoji,
-    required this.isVeg,
+    this.isVeg = true,
   });
-
-  final String id;
-  final String name;
-  final int price;
-  final String emoji;
-  final bool isVeg;
 }
 
 const kFoodItems = [
-  FoodItem(id: 'gobi_chilli', name: 'Gobi Chilli', price: 40, emoji: '🥦', isVeg: true),
-  FoodItem(id: 'chicken_gravy', name: 'Chicken Gravy', price: 80, emoji: '🍗', isVeg: false),
-  FoodItem(id: 'mushroom_manchurian', name: 'Mushroom Manchurian', price: 60, emoji: '🍄', isVeg: true),
-  FoodItem(id: 'omelette', name: 'Omelette', price: 10, emoji: '🍳', isVeg: false),
-  FoodItem(id: 'boiled_egg', name: 'Boiled Egg', price: 10, emoji: '🥚', isVeg: false),
-  FoodItem(id: 'full_boil_egg', name: 'Full Boil Egg', price: 10, emoji: '🥚', isVeg: false),
-  FoodItem(id: 'egg_gravy', name: 'Egg Gravy', price: 25, emoji: '🥘', isVeg: false),
+  FoodItem(id: 'veg_thali', name: 'Veg Thali', price: 80, emoji: '🍱'),
+  FoodItem(id: 'chicken_biryani', name: 'Chicken Biryani', price: 120, emoji: '🍗', isVeg: false),
+  FoodItem(id: 'masal_dosa', name: 'Masal Dosa', price: 50, emoji: '🥞'),
+  FoodItem(id: 'parotta', name: 'Parotta (2)', price: 40, emoji: '🥐'),
+  FoodItem(id: 'fried_rice', name: 'Veg Fried Rice', price: 70, emoji: '🍚'),
+  FoodItem(id: 'curd_rice', name: 'Curd Rice', price: 45, emoji: '🥣'),
 ];
+
+enum FoodTokenStatus { active, used, expired, cancelled }
+
+extension FoodTokenStatusExt on FoodTokenStatus {
+  String get value => switch (this) {
+        FoodTokenStatus.active => 'active',
+        FoodTokenStatus.used => 'used',
+        FoodTokenStatus.expired => 'expired',
+        FoodTokenStatus.cancelled => 'cancelled',
+      };
+
+  static FoodTokenStatus fromString(String? v) => switch (v) {
+        'used' => FoodTokenStatus.used,
+        'expired' => FoodTokenStatus.expired,
+        'cancelled' => FoodTokenStatus.cancelled,
+        _ => FoodTokenStatus.active,
+      };
+}
 
 class FoodTokenModel {
   FoodTokenModel({
     this.id,
     required this.userId,
-    required this.foodItemId,
-    required this.foodItemName,
-    required this.pricePerItem,
-    required this.quantity,
-    required this.totalPrice,
-    required this.tokenDate,
-    required this.mealSlot,
-    required this.isActive,
+    this.itemName,
+    this.itemPrice,
+    this.quantity,
+    this.totalPrice,
+    this.mealSlot,
+    this.scheduledDate,
+    required this.status,
     this.createdAt,
+    this.foodItemId, // Store original item ID if available
   });
 
   final String? id;
   final String userId;
-  final String foodItemId;
-  final String foodItemName;
-  final int pricePerItem;
-  final int quantity;
-  final int totalPrice;
-  final DateTime tokenDate;
-  final String mealSlot;
-  final bool isActive;
+  final String? itemName;
+  final double? itemPrice;
+  final int? quantity;
+  final double? totalPrice;
+  final String? mealSlot;
+  final DateTime? scheduledDate;
+  final FoodTokenStatus status;
   final DateTime? createdAt;
+  final String? foodItemId;
 
-  factory FoodTokenModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
+  // UI Compatibility Aliases
+  String get foodItemName => itemName ?? 'Unknown Item';
+  double get pricePerItem => itemPrice ?? 0.0;
+  DateTime get tokenDate => scheduledDate ?? DateTime.now();
+  bool get isActive => status == FoodTokenStatus.active;
+
+  Map<String, dynamic> toFirestore() => {
+        'userId': userId,
+        'itemName': itemName,
+        'itemPrice': itemPrice,
+        'quantity': quantity,
+        'totalPrice': totalPrice,
+        'mealSlot': mealSlot,
+        'scheduledDate':
+            scheduledDate != null ? Timestamp.fromDate(scheduledDate!) : null,
+        'status': status.value,
+        'createdAt': FieldValue.serverTimestamp(),
+        'foodItemId': foodItemId,
+      };
+
+  factory FoodTokenModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return FoodTokenModel(
       id: doc.id,
-      userId: data['userId'] ?? '',
-      foodItemId: data['foodItemId'] ?? '',
-      foodItemName: data['foodItemName'] ?? '',
-      pricePerItem: data['pricePerItem'] ?? 0,
-      quantity: data['quantity'] ?? 1,
-      totalPrice: data['totalPrice'] ?? 0,
-      tokenDate: (data['tokenDate'] as Timestamp).toDate(),
-      mealSlot: data['mealSlot'] ?? '',
-      isActive: data['isActive'] ?? true,
-      createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : null,
+      userId: data['userId'] as String? ?? '',
+      itemName: data['itemName'] as String?,
+      itemPrice: (data['itemPrice'] as num?)?.toDouble(),
+      quantity: data['quantity'] as int?,
+      totalPrice: (data['totalPrice'] as num?)?.toDouble(),
+      mealSlot: data['mealSlot'] as String?,
+      scheduledDate: (data['scheduledDate'] as Timestamp?)?.toDate(),
+      status: FoodTokenStatusExt.fromString(data['status'] as String?),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      foodItemId: data['foodItemId'] as String?,
     );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'userId': userId,
-      'foodItemId': foodItemId,
-      'foodItemName': foodItemName,
-      'pricePerItem': pricePerItem,
-      'quantity': quantity,
-      'totalPrice': totalPrice,
-      'tokenDate': Timestamp.fromDate(tokenDate),
-      'mealSlot': mealSlot,
-      'isActive': isActive,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
-    };
   }
 }

@@ -1,57 +1,40 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../services/storage/firestore_service.dart';
 import '../../domain/entities/food_token_model.dart';
-import '../../domain/repositories/food_token_repository.dart';
 
-const _foodTokensCollection = 'food_tokens';
-
-class FirestoreFoodTokenRepository implements FoodTokenRepository {
+class FirestoreFoodTokenRepository {
   FirestoreFoodTokenRepository(this._firestoreService);
 
   final FirestoreService _firestoreService;
+  static const _collection = 'food_tokens';
 
-  @override
   Future<void> bookToken(FoodTokenModel token) async {
-    try {
-      await _firestoreService
-          .collection(_foodTokensCollection)
-          .add(token.toFirestore());
-    } catch (e) {
-      throw Exception('Failed to book token: $e');
-    }
+    await _firestoreService.collection(_collection).add(token.toFirestore());
   }
 
-  @override
+  Future<void> updateTokenStatus(String tokenId, FoodTokenStatus status) async {
+    await _firestoreService
+        .collection(_collection)
+        .doc(tokenId)
+        .update({'status': status.value});
+  }
+
   Stream<List<FoodTokenModel>> watchMyTokens(String userId) {
     return _firestoreService
-        .collection(_foodTokensCollection)
+        .collection(_collection)
         .where('userId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) {
-      final tokens = snapshot.docs
-          .map((doc) => FoodTokenModel.fromFirestore(doc as DocumentSnapshot<Map<String, dynamic>>))
+        .map((snap) {
+      final list = snap.docs
+          .map((doc) => FoodTokenModel.fromFirestore(doc))
           .toList();
-      
-      // Client-side sorting by createdAt descending
-      tokens.sort((a, b) {
-        final aTime = a.createdAt ?? DateTime.now();
-        final bTime = b.createdAt ?? DateTime.now();
+      // Sort client-side by createdAt descending
+      list.sort((a, b) {
+        final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return bTime.compareTo(aTime);
       });
-      
-      return tokens;
+      return list;
     });
-  }
-
-  @override
-  Future<void> cancelToken(String tokenId) async {
-    try {
-      await _firestoreService
-          .collection(_foodTokensCollection)
-          .doc(tokenId)
-          .delete();
-    } catch (e) {
-      throw Exception('Failed to cancel token: $e');
-    }
   }
 }
