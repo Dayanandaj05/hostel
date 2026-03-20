@@ -72,7 +72,36 @@ class StudentProfileProvider extends ChangeNotifier {
         .snapshots()
         .listen(
       (snapshot) {
-        _profileData = snapshot.data();
+        if (uid == 'mock-student-uid') {
+          _profileData = {
+            'name': 'Guest Student',
+            'rollNumber': '25MX301',
+            'programme': 'M.C.A.',
+            'yearOfStudy': '2nd Year',
+            'email': 'guest@psgtech.hostel',
+            'contactPhone': '+91 98765 43210',
+            'fatherName': 'Demo Parent',
+            'address': 'PSG Tech Hostel, Peelamedu, Coimbatore',
+            'primaryMobile': '+91 98765 43210',
+            'secondaryMobile': '--',
+            'hostelName': 'Hostel Block A',
+            'blockName': 'A-Block',
+            'roomType': 'Double Occupancy',
+            'floor': '2nd Floor',
+            'roomNumber': 'A-204',
+            'joiningDate': '15-06-2024',
+            'messName': 'D-Mess (Veg)',
+            'messType': 'Vegetarian',
+            'messSupervisors': ['Warden John', 'Supervisor Sam'],
+            'eggToken': true,
+            'nonVegToken': false,
+            'establishment': 45000,
+            'deposit': 5000,
+            'balance': 0,
+          };
+        } else {
+          _profileData = snapshot.data();
+        }
         _isLoading = false;
         _error = null;
         notifyListeners();

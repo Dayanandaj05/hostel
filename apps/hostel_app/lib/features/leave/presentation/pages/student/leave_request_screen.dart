@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:hostel_app/features/leave/domain/entities/leave_request_model.dart';
 import 'package:hostel_app/features/leave/presentation/controllers/leave_request_controller.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
-import 'package:hostel_app/core/theme/theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Branding & UI Constants

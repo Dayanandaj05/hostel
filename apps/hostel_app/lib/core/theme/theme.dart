@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-final class AppTheme {
+abstract class AppTheme {
   static const _brandNavy = Color(0xFF0D2137);
 
   static ThemeData get light {

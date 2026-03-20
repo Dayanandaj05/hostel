@@ -123,17 +123,16 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
         ChangeNotifierProvider<AuthSessionProvider>.value(value: _authSessionProvider),
       ],
       builder: (context, _) {
-        if (!widget.firebaseReady) {
-          return const HostelManagementApp();
-        }
-
-        final firestore = FirebaseFirestore.instance;
+        final firestore = widget.firebaseReady 
+            ? FirebaseFirestore.instance 
+            : null; // We'll handle nulls in service if needed, or just mock.
+            
         final authService = AuthService(
-          firebaseAuth: FirebaseAuth.instance,
-          firestore: firestore,
+          firebaseAuth: widget.firebaseReady ? FirebaseAuth.instance : null as dynamic,
+          firestore: firestore as dynamic,
         );
 
-        final firestoreService = FirestoreService(firestore);
+        final firestoreService = FirestoreService(firestore as dynamic);
         final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
         final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
         final tshirtRepository = FirestoreTShirtRepository(firestoreService);
@@ -147,7 +146,7 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
               create: (_) => FirestoreComplaintRepository(firestoreService),
             ),
             ChangeNotifierProvider<StudentProfileProvider>(
-              create: (_) => StudentProfileProvider(firestore),
+              create: (_) => StudentProfileProvider(firestore as dynamic),
             ),
             ChangeNotifierProvider<LeaveRequestController>(
               create: (_) => LeaveRequestController(leaveRepository),

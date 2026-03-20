@@ -173,7 +173,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         Text(
                           p.rollNumber,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 14,
                           ),
                         ),
@@ -379,7 +379,7 @@ class _SectionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.3),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -476,7 +476,7 @@ class _TokenChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: active ? _kTeal.withOpacity(0.15) : Colors.grey.shade200,
+        color: active ? _kTeal.withValues(alpha: 0.15) : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: active ? _kTeal : Colors.grey.shade400),
       ),

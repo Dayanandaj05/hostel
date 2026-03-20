@@ -10,23 +10,8 @@ class HostelManagementApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProviderController?>(
+    return Consumer<AuthProviderController>(
       builder: (context, authProvider, _) {
-        if (authProvider == null) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Hostel Management System',
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            themeMode: ThemeMode.system,
-            home: const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          );
-        }
-
         return MaterialApp.router(
           debugShowCheckedModeBanner: false,
           title: 'Hostel Management System',

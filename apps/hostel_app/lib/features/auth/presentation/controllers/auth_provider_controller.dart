@@ -29,6 +29,15 @@ class AuthProviderController extends ChangeNotifier {
     try {
       if (_authService.currentUser != null) {
         _user = await _authService.getCurrentUserModel();
+      } else {
+        // TEMPORARY BYPASS: Create a mock user if not logged in so the user can check the UI.
+        _user = UserModel(
+          uid: 'mock-student-uid',
+          email: 'guest@psgtech.hostel',
+          name: 'Guest Student',
+          role: UserRole.student,
+          createdAt: DateTime.now(),
+        );
       }
     } catch (e) {
       _errorMessage = 'Failed to load user: $e';
