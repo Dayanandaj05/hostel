@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hostel_app/app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 
 class WardenNoticeScreen extends StatefulWidget {
@@ -71,6 +73,16 @@ class _WardenNoticeScreenState extends State<WardenNoticeScreen>
         backgroundColor: const Color(0xFF0D2137),
         foregroundColor: Colors.white,
         title: const Text('Notices'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.wardenHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.wardenHome),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,

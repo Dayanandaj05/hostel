@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:hostel_app/app/app_routes.dart';
 import 'package:hostel_app/features/leave/domain/entities/leave_request_model.dart';
 import 'package:hostel_app/features/leave/presentation/controllers/leave_request_controller.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
@@ -38,9 +40,20 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Leave'),
         backgroundColor: _kNavy,
         foregroundColor: Colors.white,
+        title: const Text('Leave Request'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            tooltip: 'Home',
+            onPressed: () => context.go(AppRoutes.studentHome),
+          ),
+        ],
       ),
       body: Consumer<LeaveRequestController>(
         builder: (context, controller, child) {

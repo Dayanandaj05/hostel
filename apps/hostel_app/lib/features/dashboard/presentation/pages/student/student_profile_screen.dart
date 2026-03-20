@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:hostel_app/app/app_routes.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
 import 'package:hostel_app/features/student/data/student_profile_provider.dart';
 
@@ -31,6 +33,16 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
         foregroundColor: Colors.white,
         title: const Text('My Profile'),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.studentHome),
+          ),
+        ],
       ),
       body: Consumer<StudentProfileProvider>(
         builder: (context, profile, _) {

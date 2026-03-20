@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
+import '../../../../../app/app_routes.dart';
 import '../../../domain/entities/food_token_model.dart';
 import '../../../presentation/controllers/food_token_controller.dart';
 
@@ -37,6 +39,16 @@ class _MyTokensScreenState extends State<MyTokensScreen> with SingleTickerProvid
         backgroundColor: const Color(0xFF0D2137),
         foregroundColor: Colors.white,
         title: const Text('My Tokens'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentTokens),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.studentHome),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,

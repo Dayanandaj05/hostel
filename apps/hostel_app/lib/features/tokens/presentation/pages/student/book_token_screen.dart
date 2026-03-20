@@ -18,14 +18,16 @@ class _BookTokenScreenState extends State<BookTokenScreen> {
 
   static const _meals = ['Breakfast', 'Lunch', 'Dinner'];
 
+  // These are add-on tokens (extras beyond the base monthly mess meal)
   static const _menuItems = [
     _MenuItem('Gobi Chilli', 40.0, Icons.local_dining_rounded),
     _MenuItem('Chicken Gravy', 80.0, Icons.set_meal_rounded),
     _MenuItem('Mushroom Manchurian', 60.0, Icons.eco_rounded),
     _MenuItem('Omelette', 10.0, Icons.egg_alt_rounded),
     _MenuItem('Boiled Egg', 10.0, Icons.egg_rounded),
-    _MenuItem('Full Boil Egg', 10.0, Icons.egg_rounded),
     _MenuItem('Egg Gravy', 25.0, Icons.soup_kitchen_rounded),
+    _MenuItem('Special Thali', 70.0, Icons.rice_bowl_rounded),
+    _MenuItem('Curd Rice', 20.0, Icons.rice_bowl_rounded),
   ];
 
   double get _cartTotal => _cart.entries.fold(0, (sum, e) {
@@ -95,6 +97,10 @@ class _BookTokenScreenState extends State<BookTokenScreen> {
         backgroundColor: const Color(0xFF0D2137),
         foregroundColor: Colors.white,
         title: const Text('Book Food Token'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentHome),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.receipt_long_rounded),
@@ -154,62 +160,100 @@ class _BookTokenScreenState extends State<BookTokenScreen> {
               ),
               // Menu items
               Expanded(
-                child: ListView.builder(
+                child: ListView(
                   padding: const EdgeInsets.all(12),
-                  itemCount: _menuItems.length,
-                  itemBuilder: (context, i) {
-                    final item = _menuItems[i];
-                    final qty = _cart[item.name] ?? 0;
-                    return Card(
-                      elevation: 0,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      shape: RoundedRectangleBorder(
+                  children: [
+                    // Info banner
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D2137).withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey.shade200),
+                        border: Border.all(color: const Color(0xFF0D2137).withValues(alpha: 0.15)),
                       ),
-                      color: Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44, height: 44,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF009688).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(item.icon, color: const Color(0xFF009688), size: 22),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, color: Color(0xFF0D2137), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'These are add-on food tokens for extras beyond your monthly mess meal. '
+                              'Your base ${_selectedMeal.toLowerCase()} meal is included in your mess plan.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                  Text('₹${item.price.toInt()}', style: const TextStyle(color: Color(0xFF009688), fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                if (qty > 0) ...[
-                                  _circleBtn(Icons.remove, () => setState(() {
-                                    if (qty == 1) _cart.remove(item.name);
-                                    else _cart[item.name] = qty - 1;
-                                  })),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  ),
-                                ],
-                                _circleBtn(Icons.add, () => setState(() => _cart[item.name] = qty + 1), primary: true),
-                              ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Menu items
+                    ..._menuItems.asMap().entries.map((entry) {
+                      final item = entry.value;
+                      final qty = _cart[item.name] ?? 0;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: qty > 0 ? const Color(0xFF009688) : Colors.grey.shade200,
+                            width: qty > 0 ? 1.5 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44, height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF009688).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(item.icon, color: const Color(0xFF009688), size: 22),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                    Text('₹${item.price.toInt()} per token',
+                                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  if (qty > 0) ...[
+                                    _circleBtn(Icons.remove, () => setState(() {
+                                      if (qty == 1) {
+                                        _cart.remove(item.name);
+                                      } else {
+                                        _cart[item.name] = qty - 1;
+                                      }
+                                    })),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    ),
+                                  ],
+                                  _circleBtn(Icons.add, () => setState(() => _cart[item.name] = qty + 1), primary: true),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
               ),
               // Cart summary + checkout

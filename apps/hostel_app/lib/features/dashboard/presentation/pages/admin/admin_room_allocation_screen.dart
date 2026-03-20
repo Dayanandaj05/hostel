@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../../app/app_routes.dart';
 
 class AdminRoomAllocationScreen extends StatefulWidget {
   const AdminRoomAllocationScreen({super.key});
@@ -60,7 +62,21 @@ class _AdminRoomAllocationScreenState extends State<AdminRoomAllocationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Allocate Rooms')),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D2137),
+        foregroundColor: Colors.white,
+        title: const Text('Allocate Rooms'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.adminHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.adminHome),
+          ),
+        ],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../../../app/app_routes.dart';
 
 import '../../controllers/complaint_controller.dart';
 import '../../../domain/entities/complaint_model.dart';
@@ -28,7 +30,21 @@ class _WardenComplaintsScreenState extends State<WardenComplaintsScreen> {
         final complaints = controller.complaints;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Manage Complaints')),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF0D2137),
+            foregroundColor: Colors.white,
+            title: const Text('Manage Complaints'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_rounded),
+              onPressed: () => context.go(AppRoutes.wardenHome),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.home_rounded),
+                onPressed: () => context.go(AppRoutes.wardenHome),
+              ),
+            ],
+          ),
           body: Padding(
             padding: const EdgeInsets.all(16),
             child: complaints.isEmpty

@@ -188,8 +188,6 @@ class _LoginScreenState extends State<LoginScreen> {
         'messName': 'G Mess',
         'messType': 'South Indian',
         'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
-        'eggToken': true,
-        'nonVegToken': false,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {

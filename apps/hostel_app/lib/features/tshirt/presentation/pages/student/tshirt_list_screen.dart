@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
+import '../../../../../app/app_routes.dart';
 import '../../../domain/entities/tshirt_order_model.dart';
 import '../../../presentation/controllers/tshirt_controller.dart';
 
@@ -28,6 +30,16 @@ class _TShirtListScreenState extends State<TShirtListScreen> {
         backgroundColor: const Color(0xFF0D2137),
         foregroundColor: Colors.white,
         title: const Text('My T-Shirt Orders'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentTShirt),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.studentHome),
+          ),
+        ],
       ),
       body: Consumer<TShirtController>(
         builder: (context, controller, _) {

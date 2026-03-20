@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 import '../../../../student/data/student_profile_provider.dart';
+import '../../../../../app/app_routes.dart';
 import '../../../domain/entities/day_entry_model.dart';
 import '../../controllers/day_entry_controller.dart';
 
@@ -200,9 +202,19 @@ class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Day Entry Pass'),
         backgroundColor: const Color(0xFF0D2137),
         foregroundColor: Colors.white,
+        title: const Text('Day Entry Pass'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.studentHome),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,

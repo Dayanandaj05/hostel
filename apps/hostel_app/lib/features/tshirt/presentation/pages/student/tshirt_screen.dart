@@ -68,6 +68,10 @@ class _TShirtScreenState extends State<TShirtScreen> {
         backgroundColor: const Color(0xFF0D2137),
         foregroundColor: Colors.white,
         title: const Text('Book T-Shirt'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentHome),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.list_alt_rounded),

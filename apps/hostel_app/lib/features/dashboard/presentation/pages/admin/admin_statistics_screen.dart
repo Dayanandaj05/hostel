@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../../app/app_routes.dart';
 
 class AdminStatisticsScreen extends StatelessWidget {
   const AdminStatisticsScreen({super.key});
@@ -9,7 +11,21 @@ class AdminStatisticsScreen extends StatelessWidget {
     final firestore = FirebaseFirestore.instance;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Hostel Statistics')),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D2137),
+        foregroundColor: Colors.white,
+        title: const Text('Hostel Statistics'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.adminHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.adminHome),
+          ),
+        ],
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 1200

@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../../app/app_routes.dart';
 
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 
@@ -61,7 +63,21 @@ class _AdminNoticePostScreenState extends State<AdminNoticePostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Post Hostel Notice')),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D2137),
+        foregroundColor: Colors.white,
+        title: const Text('Post Hostel Notice'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.adminHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.adminHome),
+          ),
+        ],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

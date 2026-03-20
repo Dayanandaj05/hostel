@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hostel_app/app/app_routes.dart';
 
 class WardenLeaveRequestsScreen extends StatefulWidget {
   const WardenLeaveRequestsScreen({super.key});
@@ -31,6 +33,16 @@ class _WardenLeaveRequestsScreenState extends State<WardenLeaveRequestsScreen>
         backgroundColor: const Color(0xFF0D2137),
         foregroundColor: Colors.white,
         title: const Text('Leave Requests'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.wardenHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.wardenHome),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,

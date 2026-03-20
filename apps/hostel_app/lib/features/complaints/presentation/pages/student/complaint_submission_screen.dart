@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
+import '../../../../../app/app_routes.dart';
 import '../../controllers/complaint_controller.dart';
 
 class ComplaintSubmissionScreen extends StatefulWidget {
@@ -64,7 +66,21 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
     return Consumer<ComplaintController>(
       builder: (context, controller, _) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Submit Complaint')),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF0D2137),
+            foregroundColor: Colors.white,
+            title: const Text('Submit Complaint'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_rounded),
+              onPressed: () => context.go(AppRoutes.studentHome),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.home_rounded),
+                onPressed: () => context.go(AppRoutes.studentHome),
+              ),
+            ],
+          ),
           body: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),

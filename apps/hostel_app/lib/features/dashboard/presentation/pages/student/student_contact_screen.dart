@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hostel_app/app/app_routes.dart';
 
 class StudentContactScreen extends StatelessWidget {
   const StudentContactScreen({super.key});
@@ -27,6 +29,16 @@ class StudentContactScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         title: const Text('Contact Us'),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(AppRoutes.studentHome),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(AppRoutes.studentHome),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

@@ -22,7 +22,6 @@ import 'package:hostel_app/features/tokens/presentation/controllers/food_token_c
 import 'package:hostel_app/features/tshirt/data/repositories/firestore_tshirt_repository.dart';
 import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_controller.dart';
 import 'package:hostel_app/features/dayentry/data/repositories/firestore_day_entry_repository.dart';
-import 'package:hostel_app/features/dayentry/domain/repositories/day_entry_repository.dart';
 import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_controller.dart';
 import 'package:hostel_app/features/student/data/student_profile_provider.dart';
 import 'package:hostel_app/services/storage/firestore_service.dart';

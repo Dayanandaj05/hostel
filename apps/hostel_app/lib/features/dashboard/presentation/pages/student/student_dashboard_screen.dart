@@ -96,6 +96,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.small(
+        backgroundColor: const Color(0xFF009688),
+        onPressed: () => _showQuickNav(context),
+        child: const Icon(Icons.grid_view_rounded, color: Colors.white),
+      ),
     );
   }
 
@@ -304,20 +309,39 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Mess info banner
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D2137),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0D2137), Color(0xFF1E4080)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0D2137).withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.restaurant_rounded, color: Color(0xFF009688), size: 28),
-                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.restaurant_rounded, color: Color(0xFF009688), size: 26),
+                    ),
+                    const SizedBox(width: 14),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -330,94 +354,161 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(profile.messType, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _messTypePill('South Indian', !profile.isNorthIndianMess),
+                    const SizedBox(width: 10),
+                    _messTypePill('North Indian', profile.isNorthIndianMess),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Token Status',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2137)),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildTokenCard('Egg Token', Icons.egg_rounded, profile.eggToken)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildTokenCard('Non-Veg Token', Icons.set_meal_rounded, profile.nonVegToken)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (profile.messSupervisors.isNotEmpty) ...[
-            const Text(
-              'Supervisors',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2137)),
+
+          // Current mess type card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade200),
             ),
-            const SizedBox(height: 12),
-            ...profile.messSupervisors.map((s) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: profile.isNorthIndianMess
+                        ? Colors.orange.withValues(alpha: 0.1)
+                        : const Color(0xFF009688).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    profile.isNorthIndianMess ? Icons.set_meal_rounded : Icons.rice_bowl_rounded,
+                    color: profile.isNorthIndianMess ? Colors.orange : const Color(0xFF009688),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: const Color(0xFF009688).withValues(alpha: 0.1),
-                        child: const Icon(Icons.person, size: 18, color: Color(0xFF009688)),
+                      Text(
+                        'Currently enrolled: ${profile.messType}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0D2137)),
                       ),
-                      const SizedBox(width: 12),
-                      Text(s, style: const TextStyle(fontSize: 14)),
+                      Text(
+                        profile.isNorthIndianMess
+                            ? 'North Indian meals are served throughout the month'
+                            : 'South Indian meals served by default',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                      ),
                     ],
                   ),
-                )),
-            const SizedBox(height: 20),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('North Indian Mess application coming soon')),
-              ),
-              icon: const Icon(Icons.add_circle_outline),
-              label: const Text('Apply for North Indian Mess'),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF009688),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 20),
+
+          if (profile.messSupervisors.isNotEmpty) ...[
+            const Text('Supervisors',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2137))),
+            const SizedBox(height: 12),
+            ...profile.messSupervisors.map((s) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFF009688).withValues(alpha: 0.1),
+                    child: const Icon(Icons.person, size: 18, color: Color(0xFF009688)),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(s, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            )),
+            const SizedBox(height: 20),
+          ],
+
+          // Apply for North Indian CTA
+          if (!profile.isNorthIndianMess)
+            _actionButton(
+              icon: Icons.swap_horiz_rounded,
+              label: 'Apply for North Indian Mess',
+              color: const Color(0xFF009688),
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('North Indian Mess application coming soon')),
+              ),
+            ),
+          if (profile.isNorthIndianMess)
+            _actionButton(
+              icon: Icons.swap_horiz_rounded,
+              label: 'Switch to South Indian Mess',
+              color: Colors.orange,
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Mess type change request coming soon')),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildTokenCard(String label, IconData icon, bool active) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: active ? const Color(0xFF009688) : Colors.grey.shade300),
+  Widget _messTypePill(String label, bool active) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFF009688) : Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: active ? null : Border.all(color: Colors.white.withValues(alpha: 0.3)),
       ),
-      color: active ? const Color(0xFF009688).withValues(alpha: 0.05) : Colors.grey.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: active ? const Color(0xFF009688) : Colors.grey),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(
-              active ? 'Active ✓' : 'Not Active',
-              style: TextStyle(fontSize: 11, color: active ? const Color(0xFF009688) : Colors.grey),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: active ? Colors.white : Colors.white70,
+          fontSize: 12,
+          fontWeight: active ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  Widget _actionButton({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
           ],
         ),
       ),
@@ -614,6 +705,64 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             },
           );
         },
+      ),
+    );
+  }
+  void _showQuickNav(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Quick Navigation',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D2137))),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _quickNavChip('My Tokens', Icons.receipt_long_rounded, AppRoutes.studentMyTokens, context),
+                _quickNavChip('My T-Shirt Orders', Icons.checkroom_rounded, AppRoutes.studentMyTShirts, context),
+                _quickNavChip('Leave History', Icons.history_rounded, AppRoutes.studentLeave, context),
+                _quickNavChip('My Passes', Icons.badge_rounded, AppRoutes.studentDayEntry, context),
+                _quickNavChip('Profile', Icons.person_rounded, AppRoutes.studentProfile, context),
+                _quickNavChip('Contact', Icons.phone_rounded, AppRoutes.studentContact, context),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _quickNavChip(String label, IconData icon, String route, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context);
+        context.go(route);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D2137).withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF0D2137).withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF0D2137)),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF0D2137))),
+          ],
+        ),
       ),
     );
   }
