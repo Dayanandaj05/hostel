@@ -9,6 +9,7 @@ abstract class AppRoutes {
   static const studentComplaints = '/student/complaints';
   static const studentTokens = '/student/tokens';
   static const studentTShirt = '/student/tshirt';
+  static const studentDayEntry = '/student/dayentry';
   static const studentNotices = '/student/notices';
   static const studentProfile = '/student/profile';
   static const studentMess = '/student/mess';

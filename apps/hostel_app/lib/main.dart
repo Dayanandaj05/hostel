@@ -20,7 +20,9 @@ import 'package:hostel_app/features/tokens/data/repositories/firestore_food_toke
 import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
 import 'package:hostel_app/features/tshirt/data/repositories/firestore_tshirt_repository.dart';
 import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_controller.dart';
-import 'package:hostel_app/features/student/data/student_profile_provider.dart';
+import 'package:hostel_app/features/dayentry/data/repositories/firestore_day_entry_repository.dart';
+import 'package:hostel_app/features/dayentry/domain/repositories/day_entry_repository.dart';
+import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_controller.dart';
 import 'package:hostel_app/services/storage/firestore_service.dart';
 
 @pragma('vm:entry-point')
@@ -136,6 +138,7 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
         final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
         final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
         final tshirtRepository = FirestoreTShirtRepository(firestoreService);
+        final dayEntryRepository = FirestoreDayEntryRepository(firestoreService);
 
         return MultiProvider(
           providers: [
@@ -159,6 +162,9 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
             ),
             ChangeNotifierProvider<TShirtController>(
               create: (_) => TShirtController(tshirtRepository),
+            ),
+            ChangeNotifierProvider<DayEntryController>(
+              create: (_) => DayEntryController(dayEntryRepository),
             ),
           ],
           child: const HostelManagementApp(),
