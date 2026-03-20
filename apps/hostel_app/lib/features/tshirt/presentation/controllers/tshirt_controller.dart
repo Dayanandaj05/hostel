@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/tshirt_order_model.dart';
-import '../../domain/entities/tshirt_models.dart';
 import '../../data/repositories/firestore_tshirt_repository.dart';
 
 class TShirtController extends ChangeNotifier {
   TShirtController(this._repository);
-
   final FirestoreTShirtRepository _repository;
 
   bool _isSubmitting = false;
@@ -22,15 +20,10 @@ class TShirtController extends ChangeNotifier {
   String? get successMessage => _successMessage;
   List<TShirtOrderModel> get myOrders => _myOrders;
 
-  // UI Compatibility Aliases
-  bool get isPlacingOrder => _isSubmitting;
-  bool get isLoadingOrders => _isLoading;
-
   void startWatchingOrders(String userId) {
     _subscription?.cancel();
     _isLoading = true;
     notifyListeners();
-
     _subscription = _repository.watchMyOrders(userId).listen(
       (orders) {
         _myOrders = orders;
@@ -52,32 +45,29 @@ class TShirtController extends ChangeNotifier {
 
   Future<bool> placeOrder({
     required String userId,
-    required TShirtStyle style,
+    required String type,
     required String size,
     required int quantity,
+    required double pricePerUnit,
   }) async {
     _isSubmitting = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
-
-    const double pricePerUnit = 450.0; // Default price
-
     try {
       final order = TShirtOrderModel(
         userId: userId,
-        type: style.name,
+        type: type,
         size: size,
         quantity: quantity,
         pricePerUnit: pricePerUnit,
         totalPrice: pricePerUnit * quantity,
         status: 'pending',
-        styleId: style.id,
       );
       await _repository.placeOrder(order);
       _successMessage = 'T-Shirt order placed successfully!';
       return true;
-    } catch (e) {
+    } catch (_) {
       _errorMessage = 'Failed to place order. Please try again.';
       return false;
     } finally {

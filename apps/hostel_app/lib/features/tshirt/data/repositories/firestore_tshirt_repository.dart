@@ -3,7 +3,6 @@ import '../../domain/entities/tshirt_order_model.dart';
 
 class FirestoreTShirtRepository {
   FirestoreTShirtRepository(this._firestoreService);
-
   final FirestoreService _firestoreService;
   static const _collection = 'tshirt_orders';
 
@@ -17,9 +16,7 @@ class FirestoreTShirtRepository {
         .where('userId', isEqualTo: userId)
         .snapshots()
         .map((snap) {
-      final list = snap.docs
-          .map((doc) => TShirtOrderModel.fromFirestore(doc))
-          .toList();
+      final list = snap.docs.map((doc) => TShirtOrderModel.fromFirestore(doc)).toList();
       list.sort((a, b) {
         final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);

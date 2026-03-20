@@ -1,78 +1,88 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hostel_app/app/app_routes.dart';
-import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
-import 'package:hostel_app/features/tokens/domain/entities/food_token_model.dart';
-import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
-
-const _kNavy = Color(0xFF0D2137);
-const _kTeal = Color(0xFF009688);
+import 'package:provider/provider.dart';
+import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
+import '../../../presentation/controllers/food_token_controller.dart';
+import '../../../../../app/app_routes.dart';
 
 class BookTokenScreen extends StatefulWidget {
   const BookTokenScreen({super.key});
-
   @override
   State<BookTokenScreen> createState() => _BookTokenScreenState();
 }
 
-class _BookTokenScreenState extends State<BookTokenScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  FoodItem? _selectedItem;
-  DateTime _selectedDate = DateTime.now();
-  String _selectedSlot = 'Lunch';
-  int _quantity = 1;
+class _BookTokenScreenState extends State<BookTokenScreen> {
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  String _selectedMeal = 'Lunch';
+  final Map<String, int> _cart = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    
-    // Start watching tokens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final uid = AuthProviderController.of(context).user?.uid;
-      if (uid != null) {
-        context.read<FoodTokenController>().startWatchingTokens(uid);
-      }
-    });
-  }
+  static const _meals = ['Breakfast', 'Lunch', 'Dinner'];
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  static const _menuItems = [
+    _MenuItem('Gobi Chilli', 40.0, Icons.local_dining_rounded),
+    _MenuItem('Chicken Gravy', 80.0, Icons.set_meal_rounded),
+    _MenuItem('Mushroom Manchurian', 60.0, Icons.eco_rounded),
+    _MenuItem('Omelette', 10.0, Icons.egg_alt_rounded),
+    _MenuItem('Boiled Egg', 10.0, Icons.egg_rounded),
+    _MenuItem('Full Boil Egg', 10.0, Icons.egg_rounded),
+    _MenuItem('Egg Gravy', 25.0, Icons.soup_kitchen_rounded),
+  ];
 
-  Future<void> _handleBookToken() async {
-    if (_selectedItem == null) return;
-
-    final controller = context.read<FoodTokenController>();
-    final uid = AuthProviderController.of(context).user?.uid;
-    
-    if (uid == null) return;
-
-    final success = await controller.bookToken(
-      userId: uid,
-      item: _selectedItem!,
-      quantity: _quantity,
-      tokenDate: _selectedDate,
-      mealSlot: _selectedSlot,
-    );
-
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(controller.successMessage ?? 'Token booked!')),
-      );
-      // Reset selection
-      setState(() {
-        _selectedItem = null;
-        _quantity = 1;
+  double get _cartTotal => _cart.entries.fold(0, (sum, e) {
+        final item = _menuItems.firstWhere((m) => m.name == e.key);
+        return sum + item.price * e.value;
       });
-      // Switch to My Tokens tab
-      _tabController.animateTo(1);
-    } else if (mounted) {
+
+  int get _cartCount => _cart.values.fold(0, (sum, qty) => sum + qty);
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  Future<void> _checkout(FoodTokenController controller) async {
+    if (_cart.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(controller.errorMessage ?? 'Booking failed')),
+        const SnackBar(content: Text('Add at least one item to your cart.')),
+      );
+      return;
+    }
+
+    final userId = AuthProviderController.of(context).user?.uid;
+    if (userId == null) return;
+
+    bool allSuccess = true;
+    for (final entry in _cart.entries) {
+      final item = _menuItems.firstWhere((m) => m.name == entry.key);
+      final success = await controller.bookToken(
+        userId: userId,
+        itemName: item.name,
+        itemPrice: item.price,
+        quantity: entry.value,
+        mealSlot: _selectedMeal,
+        scheduledDate: _selectedDate,
+      );
+      if (!success) { allSuccess = false; break; }
+    }
+
+    if (!mounted) return;
+    if (allSuccess) {
+      setState(() => _cart.clear());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tokens booked successfully!'),
+          backgroundColor: Color(0xFF009688),
+        ),
+      );
+      context.go(AppRoutes.studentMyTokens);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(controller.errorMessage ?? 'Booking failed.')),
       );
     }
   }
@@ -80,437 +90,183 @@ class _BookTokenScreenState extends State<BookTokenScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Book My Token', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: _kNavy,
-        elevation: 0,
+        backgroundColor: const Color(0xFF0D2137),
+        foregroundColor: Colors.white,
+        title: const Text('Book Food Token'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.list_alt_rounded),
+            icon: const Icon(Icons.receipt_long_rounded),
             tooltip: 'My Tokens',
             onPressed: () => context.go(AppRoutes.studentMyTokens),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: _kNavy,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: _kTeal,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'Book Token'),
-            Tab(text: 'My Tokens'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildBookTab(),
-          _buildMyTokensTab(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookTab() {
-    final curTheme = Theme.of(context);
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Select Food Item',
-            style: curTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: _kNavy),
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.85,
-              ),
-              itemCount: kFoodItems.length,
-              itemBuilder: (context, index) {
-                final item = kFoodItems[index];
-                final isSelected = _selectedItem?.id == item.id;
-                return _buildFoodCard(item, isSelected);
-              },
-            );
-          }),
-          const SizedBox(height: 24),
-          _buildSelectionControls(),
-          const SizedBox(height: 32),
-          _buildBookingSummary(),
-          const SizedBox(height: 24),
-          Consumer<FoodTokenController>(
-            builder: (context, controller, child) {
-              return SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kNavy,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: (_selectedItem == null || controller.isBooking) ? null : _handleBookToken,
-                  child: controller.isBooking
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Book Token', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFoodCard(FoodItem item, bool isSelected) {
-    return InkWell(
-      onTap: () => setState(() => _selectedItem = item),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? _kNavy.withValues(alpha: 0.05) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? _kNavy : Colors.grey.shade200,
-            width: 1.5,
-          ),
-          boxShadow: [
-            if (!isSelected)
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(item.emoji, style: const TextStyle(fontSize: 40)),
-                  const SizedBox(height: 12),
-                  Text(
-                    item.name,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '₹${item.price}',
-                    style: const TextStyle(color: _kTeal, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: item.isVeg ? const Color(0xFF4CAF50) : const Color(0xFFE53935),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            if (isSelected)
-              const Positioned(
-                bottom: 8,
-                right: 8,
-                child: Icon(Icons.check_circle, color: _kNavy, size: 24),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectionControls() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildControlSection(
-                title: 'Select Date',
-                child: InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 7)),
-                    );
-                    if (date != null) setState(() => _selectedDate = date);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.grey),
-                        const SizedBox(width: 12),
-                        Text('${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        _buildControlSection(
-          title: 'Meal Slot',
-          child: Row(
-            children: ['Breakfast', 'Lunch', 'Dinner'].map((slot) {
-              final isSelected = _selectedSlot == slot;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(slot),
-                  selected: isSelected,
-                  selectedColor: _kNavy,
-                  labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
-                  onSelected: (val) {
-                    if (val) setState(() => _selectedSlot = slot);
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildControlSection(
-          title: 'Quantity',
-          child: Row(
+      body: Consumer<FoodTokenController>(
+        builder: (context, controller, _) {
+          return Column(
             children: [
-              IconButton(
-                onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
-                icon: const Icon(Icons.remove_circle_outline, size: 28, color: _kNavy),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('$_quantity', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              IconButton(
-                onPressed: _quantity < 10 ? () => setState(() => _quantity++) : null,
-                icon: const Icon(Icons.add_circle_outline, size: 28, color: _kNavy),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildControlSection({required String title, required Widget child}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        const SizedBox(height: 8),
-        child,
-      ],
-    );
-  }
-
-  Widget _buildBookingSummary() {
-    if (_selectedItem == null) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text('Total Amount', style: TextStyle(fontWeight: FontWeight.w600)),
-          Text(
-            '₹${_selectedItem!.price * _quantity}',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _kNavy),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMyTokensTab() {
-    return Consumer<FoodTokenController>(
-      builder: (context, controller, child) {
-        if (controller.isLoadingTokens) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (controller.myTokens.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.fastfood_outlined, size: 64, color: Colors.grey.shade300),
-                const SizedBox(height: 16),
-                const Text('No tokens booked yet', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.myTokens.length,
-          itemBuilder: (context, index) {
-            final token = controller.myTokens[index];
-            return _buildTokenCard(token, controller);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildTokenCard(FoodTokenModel token, FoodTokenController controller) {
-    final foodItem = kFoodItems.firstWhere((i) => i.id == token.foodItemId, 
-        orElse: () => FoodItem(id: '', name: token.foodItemName, price: token.pricePerItem, emoji: '🍱', isVeg: true));
-    
-    final canCancel = token.isActive && (token.tokenDate.isAfter(DateTime.now().subtract(const Duration(days: 1))));
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _kNavy.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(foodItem.emoji, style: const TextStyle(fontSize: 24)),
+              // Date & meal selector
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: _selectDate,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF009688)),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                                style: const TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedMeal,
+                        isDense: true,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          prefixIcon: const Icon(Icons.restaurant_rounded, color: Color(0xFF009688), size: 18),
+                        ),
+                        items: _meals.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                        onChanged: (v) => setState(() => _selectedMeal = v!),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              // Menu items
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _menuItems.length,
+                  itemBuilder: (context, i) {
+                    final item = _menuItems[i];
+                    final qty = _cart[item.name] ?? 0;
+                    return Card(
+                      elevation: 0,
+                      margin: const EdgeInsets.only(bottom: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44, height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF009688).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(item.icon, color: const Color(0xFF009688), size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                  Text('₹${item.price.toInt()}', style: const TextStyle(color: Color(0xFF009688), fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                if (qty > 0) ...[
+                                  _circleBtn(Icons.remove, () => setState(() {
+                                    if (qty == 1) _cart.remove(item.name);
+                                    else _cart[item.name] = qty - 1;
+                                  })),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  ),
+                                ],
+                                _circleBtn(Icons.add, () => setState(() => _cart[item.name] = qty + 1), primary: true),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Cart summary + checkout
+              if (_cartCount > 0)
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(token.foodItemName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          _buildStatusChip(token.isActive),
+                          Text('$_cartCount item${_cartCount > 1 ? 's' : ''}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                          Text('₹${_cartTotal.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0D2137))),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${token.tokenDate.day.toString().padLeft(2, '0')} ${_getMonthName(token.tokenDate.month)} ${token.tokenDate.year} • ${token.mealSlot}',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: controller.isSubmitting ? null : () => _checkout(controller),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D2137),
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: controller.isSubmitting
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Book Tokens', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${token.quantity} × ₹${token.pricePerItem}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    Text(
-                      'Total: ₹${token.totalPrice}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: _kNavy),
-                    ),
-                  ],
-                ),
-                if (canCancel)
-                  OutlinedButton(
-                    onPressed: controller.isCancelling 
-                        ? null 
-                        : () async {
-                            final success = await controller.cancelToken(token.id!);
-                            if (success && mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Token cancelled!')),
-                              );
-                            }
-                          },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: controller.isCancelling && controller.errorMessage == null // Simplified check
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
-                        : const Text('Cancel'),
-                  ),
-              ],
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildStatusChip(bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.green.shade50 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        isActive ? 'Active' : 'Expired',
-        style: TextStyle(
-          color: isActive ? Colors.green.shade700 : Colors.grey.shade600,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
+  Widget _circleBtn(IconData icon, VoidCallback onTap, {bool primary = false}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 30, height: 30,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: primary ? const Color(0xFF0D2137) : Colors.grey.shade200,
         ),
+        child: Icon(icon, size: 16, color: primary ? Colors.white : const Color(0xFF0D2137)),
       ),
     );
   }
+}
 
-  String _getMonthName(int month) {
-    const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return months[month];
-  }
+class _MenuItem {
+  final String name;
+  final double price;
+  final IconData icon;
+  const _MenuItem(this.name, this.price, this.icon);
 }

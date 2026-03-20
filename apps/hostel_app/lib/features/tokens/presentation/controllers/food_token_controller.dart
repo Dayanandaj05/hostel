@@ -5,12 +5,10 @@ import '../../data/repositories/firestore_food_token_repository.dart';
 
 class FoodTokenController extends ChangeNotifier {
   FoodTokenController(this._repository);
-
   final FirestoreFoodTokenRepository _repository;
 
   bool _isSubmitting = false;
   bool _isLoading = false;
-  bool _isCancelling = false;
   String? _errorMessage;
   String? _successMessage;
   List<FoodTokenModel> _myTokens = [];
@@ -18,20 +16,14 @@ class FoodTokenController extends ChangeNotifier {
 
   bool get isSubmitting => _isSubmitting;
   bool get isLoading => _isLoading;
-  bool get isCancelling => _isCancelling;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
   List<FoodTokenModel> get myTokens => _myTokens;
-
-  // UI Compatibility Aliases
-  bool get isBooking => _isSubmitting;
-  bool get isLoadingTokens => _isLoading;
 
   void startWatchingTokens(String userId) {
     _subscription?.cancel();
     _isLoading = true;
     notifyListeners();
-
     _subscription = _repository.watchMyTokens(userId).listen(
       (tokens) {
         _myTokens = tokens;
@@ -53,53 +45,35 @@ class FoodTokenController extends ChangeNotifier {
 
   Future<bool> bookToken({
     required String userId,
-    required FoodItem item,
+    required String itemName,
+    required double itemPrice,
     required int quantity,
     required String mealSlot,
-    required DateTime tokenDate,
+    required DateTime scheduledDate,
   }) async {
     _isSubmitting = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
-
     try {
       final token = FoodTokenModel(
         userId: userId,
-        itemName: item.name,
-        itemPrice: item.price,
+        itemName: itemName,
+        itemPrice: itemPrice,
         quantity: quantity,
-        totalPrice: item.price * quantity,
+        totalPrice: itemPrice * quantity,
         mealSlot: mealSlot,
-        scheduledDate: tokenDate,
+        scheduledDate: scheduledDate,
         status: FoodTokenStatus.active,
-        foodItemId: item.id,
       );
       await _repository.bookToken(token);
       _successMessage = 'Token booked successfully!';
       return true;
-    } catch (e) {
+    } catch (_) {
       _errorMessage = 'Failed to book token. Please try again.';
       return false;
     } finally {
       _isSubmitting = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> cancelToken(String tokenId) async {
-    _isCancelling = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await _repository.updateTokenStatus(tokenId, FoodTokenStatus.cancelled);
-      return true;
-    } catch (e) {
-      _errorMessage = 'Failed to cancel token.';
-      return false;
-    } finally {
-      _isCancelling = false;
       notifyListeners();
     }
   }

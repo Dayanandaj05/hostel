@@ -23,6 +23,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     _tabController = TabController(length: 4, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final auth = AuthProviderController.of(context);
       final uid = auth.user?.uid;
       if (uid != null) {
