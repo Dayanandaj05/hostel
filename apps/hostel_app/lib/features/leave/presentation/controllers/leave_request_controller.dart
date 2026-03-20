@@ -45,7 +45,14 @@ class LeaveRequestController extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        _errorMessage = 'Failed to load leave history.';
+        String msg = 'Failed to load leave history.';
+        final errorStr = error.toString().toLowerCase();
+        if (errorStr.contains('permission-denied')) {
+          msg = 'Permission denied. Please check your role.';
+        } else if (errorStr.contains('unavailable') || errorStr.contains('network')) {
+          msg = 'Network unavailable. Please check your connection.';
+        }
+        _errorMessage = msg;
         _isLoadingHistory = false;
         notifyListeners();
       },

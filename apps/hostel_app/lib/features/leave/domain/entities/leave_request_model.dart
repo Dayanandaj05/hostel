@@ -15,7 +15,6 @@ extension LeaveRequestStatusExtension on LeaveRequestStatus {
         _ => LeaveRequestStatus.pending,
       };
 }
-
 class LeaveRequestModel {
   LeaveRequestModel({
     this.id,
@@ -45,8 +44,12 @@ class LeaveRequestModel {
     return LeaveRequestModel(
       id: doc.id,
       userId: data['userId'] ?? '',
-      startDate: (data['startDate'] as Timestamp).toDate(),
-      endDate: (data['endDate'] as Timestamp).toDate(),
+      startDate: data['startDate'] != null 
+          ? (data['startDate'] as Timestamp).toDate() 
+          : DateTime.now(),
+      endDate: data['endDate'] != null 
+          ? (data['endDate'] as Timestamp).toDate() 
+          : DateTime.now().add(const Duration(days: 1)),
       reason: data['reason'] ?? '',
       leaveType: data['leaveType'] as String?,
       approvalManager: data['approvalManager'] as String?,

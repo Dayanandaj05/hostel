@@ -57,15 +57,47 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
       ),
       body: Consumer<LeaveRequestController>(
         builder: (context, controller, child) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, controller),
-                const SizedBox(height: 16),
-                _buildHistorySection(context, controller),
-              ],
+          return RefreshIndicator(
+            onRefresh: () async {
+              final auth = AuthProviderController.of(context);
+              if (auth.user?.uid != null) {
+                controller.startWatchingHistory(auth.user!.uid);
+              }
+            },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (controller.errorMessage != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              controller.errorMessage!,
+                              style: const TextStyle(color: Colors.red, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  _buildHeader(context, controller),
+                  const SizedBox(height: 16),
+                  _buildHistorySection(context, controller),
+                ],
+              ),
             ),
           );
         },
@@ -74,8 +106,11 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
   }
 
   Widget _buildHeader(BuildContext context, LeaveRequestController controller) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
       children: [
         Text(
           'Leave History',
@@ -187,44 +222,48 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final request = controller.leaveHistory[index];
-        return Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade200),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      request.leaveType ?? 'Leave',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    _StatusChip(status: request.status),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${_formatDateTime(request.startDate)} to ${_formatDateTime(request.endDate)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 8),
-                Text(request.reason),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _CancelButton(
-                    onPressed: _canCancel(request)
-                        ? () => _confirmCancel(context, controller, request.id!)
-                        : null,
+        return InkWell(
+          onTap: () => _showLeaveDetails(context, request),
+          borderRadius: BorderRadius.circular(16),
+          child: Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        request.leaveType ?? 'Leave',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      _StatusChip(status: request.status),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_formatDateTime(request.startDate)} to ${_formatDateTime(request.endDate)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(request.reason, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _CancelButton(
+                      onPressed: _canCancel(request)
+                          ? () => _confirmCancel(context, controller, request.id!)
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -274,6 +313,46 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
     showDialog(
       context: context,
       builder: (context) => _ApplyLeaveDialog(controller: controller),
+    );
+  }
+
+  void _showLeaveDetails(BuildContext context, LeaveRequestModel request) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(request.leaveType ?? 'Leave Details', style: const TextStyle(fontWeight: FontWeight.bold, color: _kNavy)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _detailRow('From', _formatDateTime(request.startDate)),
+            const SizedBox(height: 8),
+            _detailRow('To', _formatDateTime(request.endDate)),
+            const SizedBox(height: 8),
+            _detailRow('Status', request.status.name.toUpperCase()),
+            const SizedBox(height: 16),
+            const Text('Reason:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 4),
+            Text(request.reason),
+            if (request.approvalManager != null) ...[
+              const SizedBox(height: 16),
+              _detailRow('Manager', request.approvalManager!),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Row(
+      children: [
+        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        Text(value, style: const TextStyle(fontSize: 12)),
+      ],
     );
   }
 }
@@ -397,33 +476,26 @@ class _ApplyLeaveDialogState extends State<_ApplyLeaveDialog> {
       actionsAlignment: MainAxisAlignment.center,
       actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       actions: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF0D2137),
-                  side: const BorderSide(color: Color(0xFF0D2137)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Cancel'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: _submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D2137),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Apply Leave'),
-              ),
-            ),
-          ],
+        OutlinedButton(
+          onPressed: () => Navigator.pop(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF0D2137),
+            side: const BorderSide(color: Color(0xFF0D2137)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: widget.controller.isSubmitting ? null : _submit,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF0D2137),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: widget.controller.isSubmitting 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Text('Apply Leave'),
         ),
       ],
     );
@@ -453,6 +525,8 @@ class _ApplyLeaveDialogState extends State<_ApplyLeaveDialog> {
     final userId = auth.user?.uid;
     if (userId == null) return;
 
+    setState(() {}); // Trigger rebuild to show loading state from controller
+
     final success = await widget.controller.submitLeaveRequest(
       userId: userId,
       startDate: _startDate,
@@ -462,11 +536,16 @@ class _ApplyLeaveDialogState extends State<_ApplyLeaveDialog> {
       approvalManager: _approvalManager,
     );
 
-    if (mounted && success) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Leave applied successfully!')));
-    } else if (mounted && widget.controller.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.controller.errorMessage!)));
+    if (mounted) {
+      if (success) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Leave applied successfully!')));
+      } else {
+        setState(() {}); // Rebuild to hide loading and show error
+        if (widget.controller.errorMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.controller.errorMessage!)));
+        }
+      }
     }
   }
 }
