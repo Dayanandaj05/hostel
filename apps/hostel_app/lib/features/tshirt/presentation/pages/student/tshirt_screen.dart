@@ -100,7 +100,7 @@ class _TShirtScreenState extends State<TShirtScreen>
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.6),
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
           indicatorColor: _kTeal,
           indicatorWeight: 3,
           tabs: const [
@@ -162,7 +162,7 @@ class _TShirtScreenState extends State<TShirtScreen>
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: isSelected ? _kNavy.withOpacity(0.05) : Colors.white,
+                        color: isSelected ? _kNavy.withValues(alpha: 0.05) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected ? _kNavy : Colors.grey.shade300,
@@ -225,7 +225,7 @@ class _TShirtScreenState extends State<TShirtScreen>
                     return DataRow(
                       selected: isSelected,
                       color: WidgetStateProperty.resolveWith((states) {
-                        if (isSelected) return _kTeal.withOpacity(0.08);
+                        if (isSelected) return _kTeal.withValues(alpha: 0.08);
                         return null;
                       }),
                       cells: [
