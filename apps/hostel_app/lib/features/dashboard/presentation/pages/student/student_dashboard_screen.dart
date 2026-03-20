@@ -449,9 +449,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
               icon: Icons.swap_horiz_rounded,
               label: 'Apply for North Indian Mess',
               color: const Color(0xFF009688),
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('North Indian Mess application coming soon')),
-              ),
+              onTap: () => context.go(AppRoutes.studentMessApplication),
             ),
           if (profile.isNorthIndianMess)
             _actionButton(

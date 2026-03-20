@@ -4,35 +4,111 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PSG Hostel – Login Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 const _kNavy = Color(0xFF0D2137);
 const _kTeal = Color(0xFF009688);
 const _kBreakpoint = 700.0;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Login Screen  –  Student / Warden / Admin tabs
+// ─────────────────────────────────────────────────────────────────────────────
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _rollController;
-  late final TextEditingController _passwordController;
-  bool _obscurePassword = true;
-  bool _showBanner = true;
-  String? _inlineError;
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _rollController = TextEditingController();
-    _passwordController = TextEditingController();
+    _tabController = TabController(length: 3, vsync: this);
   }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= _kBreakpoint;
+          if (wide) {
+            return Row(
+              children: [
+                Expanded(child: _BrandPanel()),
+                Expanded(child: _formPanel()),
+              ],
+            );
+          }
+          return Column(
+            children: [
+              _CompactHeader(),
+              Expanded(child: _formPanel()),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _formPanel() {
+    return Column(
+      children: [
+        // Role selector tabs
+        Container(
+          color: Colors.white,
+          child: TabBar(
+            controller: _tabController,
+            labelColor: _kNavy,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: _kTeal,
+            indicatorWeight: 3,
+            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            tabs: const [
+              Tab(text: 'Student'),
+              Tab(text: 'Warden'),
+              Tab(text: 'Admin'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: const [
+              _StudentLoginForm(),
+              _StaffLoginForm(role: _StaffRole.warden),
+              _StaffLoginForm(role: _StaffRole.admin),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDENT LOGIN  (roll number → email@psgtech.hostel)
+// ─────────────────────────────────────────────────────────────────────────────
+class _StudentLoginForm extends StatefulWidget {
+  const _StudentLoginForm();
+  @override
+  State<_StudentLoginForm> createState() => _StudentLoginFormState();
+}
+
+class _StudentLoginFormState extends State<_StudentLoginForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _rollController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscure = true;
+  bool _showBanner = true;
+  String? _error;
 
   @override
   void dispose() {
@@ -41,264 +117,127 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ── Auth helpers ──────────────────────────────────────────────────────────
-
-  String _buildEmail(String roll) {
+  String _toEmail(String roll) {
     final input = roll.trim().toLowerCase();
-    if (input.contains('@')) return input;
-    return '$input@psgtech.hostel';
+    return input.contains('@') ? input : '$input@psgtech.hostel';
   }
 
-  Future<void> _handleSignIn(AuthProviderController auth) async {
+  Future<void> _signIn(AuthProviderController auth) async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _inlineError = null);
-
-    final email = _buildEmail(_rollController.text);
-    final password = _passwordController.text;
-
+    setState(() => _error = null);
     final success = await auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
+      email: _toEmail(_rollController.text),
+      password: _passwordController.text,
     );
-
     if (!success && mounted) {
-      setState(() {
-        _inlineError = auth.errorMessage ?? 'Sign-in failed. Please try again.';
-      });
+      setState(() => _error = auth.errorMessage ?? 'Sign-in failed.');
     }
-    // On success GoRouter redirects automatically — no manual navigation.
   }
 
-  Future<void> _handleForgotPassword(AuthProviderController auth) async {
+  Future<void> _forgotPassword(AuthProviderController auth) async {
     final roll = _rollController.text.trim();
     if (roll.isEmpty) {
-      setState(() => _inlineError = 'Enter your Roll Number first.');
+      setState(() => _error = 'Enter your Roll Number first.');
       return;
     }
-    await auth.sendPasswordResetEmail(_buildEmail(roll));
+    await auth.sendPasswordResetEmail(_toEmail(roll));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('If an account exists, a password-reset link was sent.'),
-        ),
+        const SnackBar(content: Text('Password reset email sent if account exists.')),
       );
     }
   }
 
-  Future<void> _seedTestUser(AuthProviderController auth) async {
-    setState(() => _inlineError = '⏳ Seeding test account...');
-
+  Future<void> _seedStudent(AuthProviderController auth) async {
+    setState(() => _error = '⏳ Seeding student account...');
     const email = '25mx308@psgtech.hostel';
     const password = 'password123';
-
     String? uid;
-
-    // Strategy: try sign-in first (works when account already exists with
-    // admin123). If the account doesn't exist at all, create it. If sign-in
-    // fails for any other reason (e.g. wrong password), show a clear error.
     try {
-      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final cred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
       uid = cred.user?.uid;
-    } on FirebaseAuthException catch (signInErr) {
-      // Account does not exist yet — create it now.
-      final noAccount = signInErr.code == 'user-not-found' ||
-          signInErr.code == 'invalid-credential' ||
-          signInErr.code == 'INVALID_LOGIN_CREDENTIALS';
-
-      if (noAccount) {
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' ||
+          e.code == 'invalid-credential' ||
+          e.code == 'INVALID_LOGIN_CREDENTIALS') {
         try {
           final cred = await FirebaseAuth.instance
               .createUserWithEmailAndPassword(email: email, password: password);
           uid = cred.user?.uid;
-        } on FirebaseAuthException catch (createErr) {
-          if (createErr.code == 'email-already-in-use') {
-            // This happens if invalid-credential was returned by signIn for an existing account
-            if (mounted) {
-              setState(() => _inlineError =
-                  '⚠️ Account exists with a different password.\n'
-                  'Delete "25mx308@psgtech.hostel" from Firebase Auth console, or use the correct password.');
-            }
-            return;
-          }
-          if (mounted) {
-            setState(() => _inlineError = 'Seed failed (create): ${createErr.message}');
-          }
-          return;
-        } catch (createErr) {
-          if (mounted) {
-            setState(() => _inlineError = 'Seed failed (create): $createErr');
-          }
+        } catch (ce) {
+          if (mounted) setState(() => _error = 'Seed failed: $ce');
           return;
         }
-      } else if (signInErr.code == 'wrong-password' ||
-          signInErr.code == 'email-already-in-use') {
-        // Account exists but with a different password — can't recover here.
-        if (mounted) {
-          setState(() => _inlineError =
-              '⚠️ Account exists with a different password.\n'
-              'Delete "25mx308@psgtech.hostel" from Firebase Auth console, then retry.');
-        }
-        return;
       } else {
-        if (mounted) {
-          setState(() => _inlineError =
-              'Seed failed: [${signInErr.code}] ${signInErr.message}');
-        }
+        if (mounted) setState(() => _error = 'Seed failed: ${e.message}');
         return;
       }
-    } catch (e) {
-      if (mounted) setState(() => _inlineError = 'Seed failed: $e');
-      return;
     }
-
     if (uid == null) {
-      if (mounted) {
-        setState(() => _inlineError = 'Seed failed: could not get UID.');
-      }
+      if (mounted) setState(() => _error = 'Seed failed: no UID');
       return;
     }
-
-    // Write the full profile document.
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'name': 'Test Student',
-        'email': email,
-        'role': 'student',
-        'rollNumber': '25MX308',
-        'programme': 'MASTER OF COMPUTER APPLICATIONS',
-        'yearOfStudy': '1st Year, 2025 Batch',
-        'contactPhone': '+91 9876543210',
-        'fatherName': 'PSG Father',
-        'address': 'PSG Hostel, Avinashi Road, Coimbatore',
-        'primaryMobile': '+91 9876543210',
-        'secondaryMobile': '+91 9876543211',
-        'establishment': 50000,
-        'deposit': 5000,
-        'balance': 39447,
-        'hostelName': 'Main Hostel',
-        'blockName': 'G3 Block',
-        'roomType': 'New 4 In 1 Room',
-        'floor': 'Fifth Floor',
-        'roomNumber': 'G3-621',
-        'joiningDate': '04-AUG-25',
-        'messName': 'G Mess',
-        'messType': 'South Indian',
-        'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      if (mounted) {
-        setState(() => _inlineError = 'Seed: doc write failed: $e');
-      }
-      return;
-    }
-
-    // Refresh the AuthProviderController so it loads the full UserModel.
-    // If Firebase session is already active (from the sign-in/create above),
-    // just fetch the user model directly.
-    final currentFbUser = FirebaseAuth.instance.currentUser;
-    if (currentFbUser != null && currentFbUser.uid == uid) {
-      // Force-load the UserModel from Firestore into our controller.
-      final success = await auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      if (!mounted) return;
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'name': 'Test Student',
+      'email': email,
+      'role': 'student',
+      'rollNumber': '25MX308',
+      'programme': 'MASTER OF COMPUTER APPLICATIONS',
+      'yearOfStudy': '1st Year, 2025 Batch',
+      'contactPhone': '+91 9876543210',
+      'fatherName': 'PSG Father',
+      'address': 'PSG Hostel, Avinashi Road, Coimbatore',
+      'primaryMobile': '+91 9876543210',
+      'secondaryMobile': '+91 9876543211',
+      'establishment': 50000,
+      'deposit': 5000,
+      'balance': 39447,
+      'hostelName': 'Main Hostel',
+      'blockName': 'G3 Block',
+      'roomType': 'New 4 In 1 Room',
+      'floor': 'Fifth Floor',
+      'roomNumber': 'G3-621',
+      'joiningDate': '04-AUG-25',
+      'messName': 'G Mess',
+      'messType': 'South Indian',
+      'messSupervisors': ['Supervisor 1', 'Supervisor 2'],
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    final success = await auth.signInWithEmailAndPassword(
+      email: email, password: password);
+    if (mounted) {
       if (success) {
         _rollController.text = '25MX308';
         _passwordController.text = 'password123';
-        setState(() => _inlineError = null);
+        setState(() => _error = null);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Test user seeded and signed in!')),
+          const SnackBar(content: Text('✅ Student account seeded!')),
         );
-        // GoRouter redirect fires automatically.
       } else {
-        setState(() => _inlineError =
-            auth.errorMessage ?? 'Seed OK but controller sign-in failed.');
+        setState(() => _error = auth.errorMessage ?? 'Seed OK but login failed.');
       }
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Consumer<AuthProviderController>(
-        builder: (context, auth, _) {
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= _kBreakpoint;
-
-              if (wide) {
-                return Row(
-                  children: [
-                    Expanded(child: _BrandPanel()),
-                    Expanded(
-                      child: _formSide(auth),
-                    ),
-                  ],
-                );
-              }
-
-              // Narrow / mobile
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _CompactHeader(),
-                    _formSide(auth),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _formSide(AuthProviderController auth) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+    return Consumer<AuthProviderController>(
+      builder: (context, auth, _) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Info banner ──
               if (_showBanner) _infoBanner(),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Sign In',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Use your institution roll number',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // ── Form ──
+              _heading('Student Sign In', 'Enter your roll number and password'),
+              const SizedBox(height: 24),
               Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Roll Number
                     TextFormField(
                       controller: _rollController,
                       enabled: !auth.isLoading,
@@ -307,153 +246,36 @@ class _LoginScreenState extends State<LoginScreen> {
                         labelText: 'Roll Number',
                         hintText: 'e.g. 24MCA001',
                         prefixIcon: const Icon(Icons.badge_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Roll number is required';
-                        }
-                        if (v.trim().length < 5) {
-                          return 'Enter a valid roll number (min 5 chars)';
-                        }
+                        if (v == null || v.trim().isEmpty) return 'Roll number required';
+                        if (v.trim().length < 5) return 'Min 5 characters';
                         return null;
                       },
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Password
-                    TextFormField(
-                      controller: _passwordController,
-                      enabled: !auth.isLoading,
-                      obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                          onPressed: () {
-                            setState(
-                                () => _obscurePassword = !_obscurePassword);
-                          },
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Password is required';
-                        }
-                        if (v.length < 6) {
-                          return 'Must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Forgot password
+                    const SizedBox(height: 14),
+                    _passwordField(_passwordController, auth.isLoading,
+                        () => setState(() => _obscure = !_obscure), _obscure),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed:
-                            auth.isLoading ? null : () => _handleForgotPassword(auth),
+                        onPressed: auth.isLoading ? null : () => _forgotPassword(auth),
                         child: const Text('Forgot Password?'),
                       ),
                     ),
-
-                    const SizedBox(height: 8),
-
-                    // Sign In button
-                    SizedBox(
-                      height: 50,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _kNavy,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed:
-                            auth.isLoading ? null : () => _handleSignIn(auth),
-                        child: auth.isLoading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Sign In',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w600),
-                              ),
-                      ),
-                    ),
-
-                    // ── Inline error ──
-                    if (_inlineError != null) ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.error_outline,
-                                color: Colors.red.shade700, size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _inlineError!,
-                                style: TextStyle(
-                                  color: Colors.red.shade700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    _signInButton(auth, () => _signIn(auth)),
+                    if (_error != null) _errorBox(_error!),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 28),
-
-              // Seeding button (Temporary)
+              const SizedBox(height: 20),
               TextButton(
-                onPressed: auth.isLoading ? null : () => _seedTestUser(auth),
-                child: const Text('Seed Test Student Account (25MX308)'),
+                onPressed: auth.isLoading ? null : () => _seedStudent(auth),
+                child: const Text('Seed Test Student (25MX308 / password123)',
+                    style: TextStyle(fontSize: 12)),
               ),
-
-              const SizedBox(height: 12),
-
-              // Help text
-              Center(
-                child: Text(
-                  'Need help? Contact hostel office',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade500,
-                      ),
-                ),
-              ),
+              _helpText(),
             ],
           ),
         ),
@@ -461,33 +283,29 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ── Info banner ───────────────────────────────────────────────────────────
-
   Widget _infoBanner() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1), // amber‑50
+        color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.amber.shade300),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, color: Colors.amber.shade800, size: 20),
+          Icon(Icons.info_outline, color: Colors.amber.shade800, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Students are instructed to utilize the online North Indian '
-              'mess application feature available in Mess Details section '
-              'post-login.',
-              style: TextStyle(fontSize: 12.5, color: Colors.amber.shade900),
+              'Students can apply for North Indian Mess in the Mess Details section after login.',
+              style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
             ),
           ),
           InkWell(
             onTap: () => setState(() => _showBanner = false),
-            child: Icon(Icons.close, size: 18, color: Colors.amber.shade800),
+            child: Icon(Icons.close, size: 16, color: Colors.amber.shade800),
           ),
         ],
       ),
@@ -495,10 +313,343 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// LEFT BRAND PANEL (wide screens)
-// ═════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// WARDEN / ADMIN LOGIN  (email + password)
+// ─────────────────────────────────────────────────────────────────────────────
+enum _StaffRole { warden, admin }
 
+class _StaffLoginForm extends StatefulWidget {
+  const _StaffLoginForm({required this.role});
+  final _StaffRole role;
+  @override
+  State<_StaffLoginForm> createState() => _StaffLoginFormState();
+}
+
+class _StaffLoginFormState extends State<_StaffLoginForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  bool get _isAdmin => widget.role == _StaffRole.admin;
+  String get _roleLabel => _isAdmin ? 'Admin' : 'Warden';
+  String get _roleValue => _isAdmin ? 'admin' : 'warden';
+  // Seed credentials
+  String get _seedEmail =>
+      _isAdmin ? 'admin@psgtech.hostel' : 'warden@psgtech.hostel';
+  String get _seedPassword => _isAdmin ? 'admin123456' : 'warden123456';
+  String get _seedName => _isAdmin ? 'Hostel Admin' : 'Block Warden';
+
+  Future<void> _signIn(AuthProviderController auth) async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _error = null);
+    final success = await auth.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+    if (!success && mounted) {
+      // Extra guard: if the account exists but has a different role,
+      // show a clear message instead of a generic error.
+      final msg = auth.errorMessage ?? 'Sign-in failed.';
+      setState(() => _error = msg);
+    }
+  }
+
+  Future<void> _forgotPassword(AuthProviderController auth) async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _error = 'Enter your email first.');
+      return;
+    }
+    await auth.sendPasswordResetEmail(email);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent if account exists.')),
+      );
+    }
+  }
+
+  Future<void> _seedAccount(AuthProviderController auth) async {
+    setState(() => _error = '⏳ Seeding $_roleLabel account...');
+    String? uid;
+    try {
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _seedEmail, password: _seedPassword);
+      uid = cred.user?.uid;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' ||
+          e.code == 'invalid-credential' ||
+          e.code == 'INVALID_LOGIN_CREDENTIALS') {
+        try {
+          final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+              email: _seedEmail, password: _seedPassword);
+          uid = cred.user?.uid;
+        } catch (ce) {
+          if (mounted) setState(() => _error = 'Seed failed: $ce');
+          return;
+        }
+      } else {
+        if (mounted) setState(() => _error = 'Seed failed: ${e.message}');
+        return;
+      }
+    }
+    if (uid == null) {
+      if (mounted) setState(() => _error = 'Seed failed: no UID');
+      return;
+    }
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'name': _seedName,
+      'email': _seedEmail,
+      'role': _roleValue,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    final success = await auth.signInWithEmailAndPassword(
+        email: _seedEmail, password: _seedPassword);
+    if (mounted) {
+      if (success) {
+        _emailController.text = _seedEmail;
+        _passwordController.text = _seedPassword;
+        setState(() => _error = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ $_roleLabel account seeded!')),
+        );
+      } else {
+        setState(() =>
+            _error = auth.errorMessage ?? 'Seed OK but login failed.');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProviderController>(
+      builder: (context, auth, _) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Role badge
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _isAdmin
+                        ? Colors.deepPurple.withValues(alpha: 0.1)
+                        : _kNavy.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _isAdmin
+                          ? Colors.deepPurple.withValues(alpha: 0.4)
+                          : _kNavy.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isAdmin
+                            ? Icons.admin_panel_settings_rounded
+                            : Icons.manage_accounts_rounded,
+                        size: 16,
+                        color: _isAdmin ? Colors.deepPurple : _kNavy,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_roleLabel Portal',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: _isAdmin ? Colors.deepPurple : _kNavy,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _heading('$_roleLabel Sign In',
+                  'Use your institutional email address'),
+              const SizedBox(height: 24),
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _emailController,
+                      enabled: !auth.isLoading,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'Email Address',
+                        hintText: _isAdmin
+                            ? 'e.g. admin@psgtech.hostel'
+                            : 'e.g. warden@psgtech.hostel',
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Email required';
+                        if (!v.contains('@')) return 'Enter a valid email';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _passwordField(_passwordController, auth.isLoading,
+                        () => setState(() => _obscure = !_obscure), _obscure),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: auth.isLoading
+                            ? null
+                            : () => _forgotPassword(auth),
+                        child: const Text('Forgot Password?'),
+                      ),
+                    ),
+                    _signInButton(auth, () => _signIn(auth),
+                        label: 'Sign In as $_roleLabel'),
+                    if (_error != null) _errorBox(_error!),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Seed button (dev helper)
+              OutlinedButton.icon(
+                onPressed: auth.isLoading ? null : () => _seedAccount(auth),
+                icon: const Icon(Icons.build_circle_outlined, size: 16),
+                label: Text(
+                    'Seed Test $_roleLabel ($_seedEmail / $_seedPassword)',
+                    style: const TextStyle(fontSize: 11)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade600,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  minimumSize: const Size(double.infinity, 36),
+                ),
+              ),
+              _helpText(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+Widget _heading(String title, String subtitle) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(title,
+          style: const TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w700, color: _kNavy)),
+      const SizedBox(height: 4),
+      Text(subtitle,
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+    ],
+  );
+}
+
+Widget _passwordField(TextEditingController controller, bool loading,
+    VoidCallback toggleObscure, bool obscure) {
+  return TextFormField(
+    controller: controller,
+    enabled: !loading,
+    obscureText: obscure,
+    decoration: InputDecoration(
+      labelText: 'Password',
+      prefixIcon: const Icon(Icons.lock_outline),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      suffixIcon: IconButton(
+        icon: Icon(obscure
+            ? Icons.visibility_off_outlined
+            : Icons.visibility_outlined),
+        onPressed: toggleObscure,
+      ),
+    ),
+    validator: (v) {
+      if (v == null || v.isEmpty) return 'Password required';
+      if (v.length < 6) return 'Minimum 6 characters';
+      return null;
+    },
+  );
+}
+
+Widget _signInButton(AuthProviderController auth, VoidCallback onPressed,
+    {String label = 'Sign In'}) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: SizedBox(
+      height: 50,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: _kNavy,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        onPressed: auth.isLoading ? null : onPressed,
+        child: auth.isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.5, color: Colors.white))
+            : Text(label,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w600)),
+      ),
+    ),
+  );
+}
+
+Widget _errorBox(String message) {
+  return Container(
+    margin: const EdgeInsets.only(top: 14),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    decoration: BoxDecoration(
+      color: Colors.red.shade50,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.red.shade200),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(message,
+              style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _helpText() {
+  return Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: Center(
+      child: Text('Need help? Contact hostel office',
+          style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BRAND PANEL  (wide screens — left side)
+// ─────────────────────────────────────────────────────────────────────────────
 class _BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -510,57 +661,31 @@ class _BrandPanel extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Diamond Logo ──
               const _PsgDiamondLogo(size: 90),
-
               const SizedBox(height: 24),
-
               const Text(
                 'PSG INSTITUTIONS',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.5,
-                ),
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.5),
               ),
-
               const SizedBox(height: 6),
-
               Text(
                 'Resident Portal',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: 1,
-                ),
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 15,
+                    letterSpacing: 1),
               ),
-
-              const SizedBox(height: 36),
-
-              // ── Bullet points ──
-              ..._bulletPoints.map(
-                (text) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check_circle_outline,
-                          color: _kTeal, size: 18),
-                      const SizedBox(width: 10),
-                      Text(
-                        text,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              const SizedBox(height: 40),
+              ...[
+                _bullet(Icons.school_rounded, 'Student self-service portal'),
+                _bullet(Icons.manage_accounts_rounded, 'Warden management tools'),
+                _bullet(Icons.admin_panel_settings_rounded, 'Admin controls & analytics'),
+              ],
             ],
           ),
         ),
@@ -568,54 +693,55 @@ class _BrandPanel extends StatelessWidget {
     );
   }
 
-  static const _bulletPoints = [
-    'Manage your hostel life',
-    'Apply leave digitally',
-    'Track mess & fees',
-  ];
+  Widget _bullet(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: _kTeal, size: 18),
+          const SizedBox(width: 10),
+          Text(text,
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85), fontSize: 14)),
+        ],
+      ),
+    );
+  }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// COMPACT HEADER (narrow / mobile screens)
-// ═════════════════════════════════════════════════════════════════════════════
-
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPACT HEADER  (mobile — top strip)
+// ─────────────────────────────────────────────────────────────────────────────
 class _CompactHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
       decoration: const BoxDecoration(
         color: _kNavy,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
       ),
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const _PsgDiamondLogo(size: 56),
-            const SizedBox(height: 14),
-            const Text(
-              'PSG INSTITUTIONS',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Resident Portal',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.75),
-                fontSize: 13,
-              ),
-            ),
+            const _PsgDiamondLogo(size: 52),
+            const SizedBox(height: 12),
+            const Text('PSG INSTITUTIONS',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2)),
+            const SizedBox(height: 3),
+            Text('Resident Portal',
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
           ],
         ),
       ),
@@ -623,10 +749,9 @@ class _CompactHeader extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// PSG DIAMOND LOGO (Flutter widget – rotated rounded square with "PSG" text)
-// ═════════════════════════════════════════════════════════════════════════════
-
+// ─────────────────────────────────────────────────────────────────────────────
+// PSG DIAMOND LOGO
+// ─────────────────────────────────────────────────────────────────────────────
 class _PsgDiamondLogo extends StatelessWidget {
   const _PsgDiamondLogo({required this.size});
   final double size;
@@ -638,7 +763,7 @@ class _PsgDiamondLogo extends StatelessWidget {
       height: size * 1.3,
       child: Center(
         child: Transform.rotate(
-          angle: 0.7854, // 45° in radians
+          angle: 0.7854,
           child: Container(
             width: size,
             height: size,
@@ -647,23 +772,21 @@ class _PsgDiamondLogo extends StatelessWidget {
               borderRadius: BorderRadius.circular(size * 0.16),
               boxShadow: [
                 BoxShadow(
-                  color: _kTeal.withValues(alpha: 0.45),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
+                    color: _kTeal.withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6)),
               ],
             ),
             child: Center(
               child: Transform.rotate(
-                angle: -0.7854, // rotate text back
+                angle: -0.7854,
                 child: Text(
                   'PSG',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: size * 0.28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2,
-                  ),
+                      color: Colors.white,
+                      fontSize: size * 0.28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2),
                 ),
               ),
             ),

@@ -17,6 +17,7 @@ abstract class AppRoutes {
   static const studentMess = '/student/mess';
   static const studentFees = '/student/fees';
   static const studentContact = '/student/contact';
+  static const studentMessApplication = '/student/mess-application';
 
   static const wardenHome = '/warden';
   static const wardenLeaveRequests = '/warden/leave-requests';

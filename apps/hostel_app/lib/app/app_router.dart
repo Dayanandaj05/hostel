@@ -26,6 +26,7 @@ import '../features/dashboard/presentation/pages/student/student_profile_screen.
 import '../features/dashboard/presentation/pages/student/student_contact_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_room_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_notices_screen.dart';
+import '../features/dashboard/presentation/pages/student/mess_application_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_dashboard_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_leave_requests_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_notice_screen.dart';
@@ -143,6 +144,10 @@ abstract class AppRouter {
             title: 'Mess Details',
             description: 'View mess information and billing.',
           ),
+        ),
+        GoRoute(
+          path: '/student/mess-application',
+          builder: (context, state) => const MessApplicationScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentFees,
