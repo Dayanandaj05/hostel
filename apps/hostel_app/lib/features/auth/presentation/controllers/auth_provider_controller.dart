@@ -30,14 +30,8 @@ class AuthProviderController extends ChangeNotifier {
       if (_authService.currentUser != null) {
         _user = await _authService.getCurrentUserModel();
       } else {
-        // TEMPORARY BYPASS: Create a mock user if not logged in so the user can check the UI.
-        _user = UserModel(
-          uid: 'mock-student-uid',
-          email: 'guest@psgtech.hostel',
-          name: 'Guest Student',
-          role: UserRole.student,
-          createdAt: DateTime.now(),
-        );
+        // No authenticated user — leave _user as null.
+        // GoRouter redirect will send unauthenticated users to /login.
       }
     } catch (e) {
       _errorMessage = 'Failed to load user: $e';

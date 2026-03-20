@@ -232,9 +232,15 @@ const List<_AdminDashboardCard> _cards = [
     route: AppRoutes.adminDashboard,
   ),
   _AdminDashboardCard(
-    title: 'Post Notices',
-    subtitle: 'Publish announcements visible to all residents.',
+    title: 'Notices',
+    subtitle: 'Post announcements and updates for students.',
     icon: Icons.campaign_rounded,
     route: AppRoutes.adminNotices,
+  ),
+  _AdminDashboardCard(
+    title: 'Hostel Day',
+    subtitle: 'Configure event date and manage student registrations.',
+    icon: Icons.celebration_rounded,
+    route: AppRoutes.adminHostelDay,
   ),
 ];

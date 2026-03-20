@@ -16,6 +16,7 @@ import '../features/dashboard/presentation/pages/admin/admin_role_assignment_scr
 import '../features/dashboard/presentation/pages/admin/admin_room_allocation_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_statistics_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_user_management_screen.dart';
+import '../features/dashboard/presentation/pages/admin/admin_hostel_day_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_dashboard_screen.dart';
 import '../features/tokens/presentation/pages/student/book_token_screen.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
@@ -23,6 +24,8 @@ import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
 import '../features/dayentry/presentation/pages/student/day_entry_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_profile_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_contact_screen.dart';
+import '../features/dashboard/presentation/pages/student/student_room_screen.dart';
+import '../features/dashboard/presentation/pages/student/student_notices_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_dashboard_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_leave_requests_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_notice_screen.dart';
@@ -91,10 +94,7 @@ abstract class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.studentRoom,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Room Information',
-            description: 'View and manage your room allocation.',
-          ),
+          builder: (_, __) => const StudentRoomScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentLeave,
@@ -111,10 +111,7 @@ abstract class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.studentNotices,
-          builder: (_, __) => const _PlaceholderPage(
-            title: 'Notices',
-            description: 'View hostel notices and announcements.',
-          ),
+          builder: (_, __) => const StudentNoticesScreen(),
         ),
         GoRoute(
           path: AppRoutes.studentTokens,
@@ -203,6 +200,10 @@ abstract class AppRouter {
           path: AppRoutes.adminDashboard,
           builder: (_, __) => const AdminStatisticsScreen(),
         ),
+        GoRoute(
+          path: AppRoutes.adminHostelDay,
+          builder: (_, __) => const AdminHostelDayScreen(),
+        ),
       ],
     );
   }
@@ -277,23 +278,26 @@ class _PlaceholderPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = AuthProviderController.of(context);
 
+    final homeRoute = switch (authProvider.role) {
+      UserRole.warden => AppRoutes.wardenHome,
+      UserRole.admin => AppRoutes.adminHome,
+      _ => AppRoutes.studentHome,
+    };
+
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: const Color(0xFF0D2137),
+        foregroundColor: Colors.white,
         title: Text(title),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.go(homeRoute),
+        ),
         actions: [
-          if (authProvider.isAuthenticated)
-            IconButton(
-              tooltip: 'Sign out',
-              icon: const Icon(Icons.logout),
-              onPressed: authProvider.isLoading
-                  ? null
-                  : () async {
-                      await authProvider.signOut();
-                      if (context.mounted) {
-                        context.go(AppRoutes.login);
-                      }
-                    },
-            ),
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go(homeRoute),
+          ),
         ],
       ),
       body: Center(
@@ -302,14 +306,16 @@ class _PlaceholderPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Icon(Icons.construction_rounded, size: 64, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
               Text(
                 description,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
               const Text(
-                '(Placeholder - Feature under development)',
+                'Feature under development',
                 style: TextStyle(color: Colors.grey),
               ),
             ],

@@ -29,4 +29,5 @@ abstract class AppRoutes {
   static const adminRooms = '/admin/rooms';
   static const adminNotices = '/admin/notices';
   static const adminDashboard = '/admin/dashboard';
+  static const adminHostelDay = '/admin/hostel-day';
 }

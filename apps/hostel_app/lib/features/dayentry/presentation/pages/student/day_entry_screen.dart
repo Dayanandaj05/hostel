@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -17,7 +18,6 @@ class DayEntryScreen extends StatefulWidget {
 class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  DateTime? _selectedDate;
   String? _selectedTimeSlot;
   final List<DayEntryVisitor> _visitors = [];
 
@@ -44,18 +44,6 @@ class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProvid
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 7)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
-    }
   }
 
   void _addVisitor() {
@@ -155,16 +143,16 @@ class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProvid
     );
   }
 
-  Future<void> _submitRegistration() async {
-    if (_selectedDate == null || _selectedTimeSlot == null) {
+  Future<void> _submitRegistrationWithDate(
+      DateTime eventDate, StudentProfileProvider profile) async {
+    if (_selectedTimeSlot == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select the event date and session')),
+        const SnackBar(content: Text('Please select a session')),
       );
       return;
     }
 
     final userId = AuthProviderController.of(context).user?.uid;
-    final profile = context.read<StudentProfileProvider>();
     if (userId == null) return;
 
     final success = await context.read<DayEntryController>().registerDayEntry(
@@ -173,17 +161,17 @@ class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProvid
           rollNumber: profile.rollNumber,
           roomNumber: profile.roomNumber,
           programme: profile.programme,
-          visitDate: _selectedDate!,
+          visitDate: eventDate,
           timeSlot: _selectedTimeSlot!,
           visitors: _visitors,
         );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.read<DayEntryController>().successMessage!)),
+        SnackBar(content: Text(
+            context.read<DayEntryController>().successMessage!)),
       );
       setState(() {
-        _selectedDate = null;
         _selectedTimeSlot = null;
         _visitors.clear();
       });
@@ -233,253 +221,385 @@ class _DayEntryScreenState extends State<DayEntryScreen> with SingleTickerProvid
     final profile = context.watch<StudentProfileProvider>();
     final controller = context.watch<DayEntryController>();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Event banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0D2137), Color(0xFF1E4080)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0D2137).withValues(alpha: 0.3),
-                  blurRadius: 12, offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.celebration_rounded, color: Color(0xFF009688), size: 28),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Annual Hostel Day',
-                            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                          Text('PSG Institutions',
-                            style: TextStyle(color: Colors.white70, fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text(
-                    '🎉 Register yourself and your family members to attend the Annual Hostel Day celebration.',
-                    style: TextStyle(color: Colors.white, fontSize: 12, height: 1.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('settings')
+          .doc('hostel_day')
+          .snapshots(),
+      builder: (context, snapshot) {
+        // Loading
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          // Event date selection
-          const Text('Event Details',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2137))),
-          const SizedBox(height: 12),
-
-          InkWell(
-            onTap: () => _selectDate(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(
-                  color: _selectedDate != null ? const Color(0xFF009688) : Colors.grey.shade300,
-                  width: _selectedDate != null ? 1.5 : 1,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
+        // Not configured yet
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.event_rounded,
-                    size: 20,
-                    color: _selectedDate != null ? const Color(0xFF009688) : Colors.grey.shade500),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _selectedDate == null
-                          ? 'Select Event Date'
-                          : '${_selectedDate!.day.toString().padLeft(2,'0')}/${_selectedDate!.month.toString().padLeft(2,'0')}/${_selectedDate!.year}',
-                      style: TextStyle(
-                        color: _selectedDate == null ? Colors.grey.shade500 : const Color(0xFF0D2137),
-                        fontSize: 15,
-                        fontWeight: _selectedDate != null ? FontWeight.w500 : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.arrow_drop_down_rounded, color: Colors.grey.shade400),
+                  Icon(Icons.event_busy_rounded, size: 80, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('Hostel Day Not Announced',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: const Color(0xFF0D2137), fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('The event date has not been set yet. Check back later.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+          );
+        }
 
-          DropdownButtonFormField<String>(
-          initialValue: _selectedTimeSlot,
-            decoration: InputDecoration(
-              labelText: 'Select Session',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              filled: true,
-              fillColor: Colors.white,
-              prefixIcon: const Icon(Icons.access_time_rounded, color: Color(0xFF009688)),
-            ),
-            items: _timeSlots
-                .map((slot) => DropdownMenuItem(value: slot, child: Text(slot)))
-                .toList(),
-            onChanged: (val) => setState(() => _selectedTimeSlot = val),
-          ),
-          const SizedBox(height: 24),
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final registrationOpen = data['registrationOpen'] as bool? ?? false;
+        final eventName = data['eventName'] as String? ?? 'Annual Hostel Day';
+        final venue = data['venue'] as String? ?? '--';
+        final notes = data['notes'] as String? ?? '';
+        final maxVisitors = (data['maxVisitorsPerStudent'] as num?)?.toInt() ?? 4;
+        final eventTs = data['eventDate'] as Timestamp?;
+        final eventDate = eventTs?.toDate();
+        final dateStr = eventDate == null ? '--'
+            : '${eventDate.day.toString().padLeft(2, '0')}/'
+              '${eventDate.month.toString().padLeft(2, '0')}/'
+              '${eventDate.year}';
 
-          // Student info
-          const Text('Your Details',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2137))),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
+        // Registration closed
+        if (!registrationOpen) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                _infoRow('Name', profile.displayName, Icons.person_rounded),
-                const Divider(height: 20),
-                _infoRow('Roll Number', profile.rollNumber, Icons.badge_rounded),
-                const Divider(height: 20),
-                _infoRow('Room', profile.roomNumber, Icons.meeting_room_rounded),
-                const Divider(height: 20),
-                _infoRow('Programme', profile.programme, Icons.school_rounded),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Family members
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Family Members',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2137))),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D2137).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${_visitors.length}/4',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D2137)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Invite up to 4 family members to attend with you',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-
-          ..._visitors.map((v) => Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF009688).withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: const Color(0xFF009688).withValues(alpha: 0.1),
-                  child: const Icon(Icons.person, size: 18, color: Color(0xFF009688)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // Event banner still shown
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0D2137), Color(0xFF1E4080)]),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
                     children: [
-                      Text(v.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text('${v.relation} • ${v.mobile}',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.celebration_rounded,
+                            color: Color(0xFF009688), size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(eventName,
+                              style: const TextStyle(color: Colors.white,
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text(dateStr,
+                              style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                  onPressed: () => setState(() => _visitors.remove(v)),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                const SizedBox(height: 24),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.lock_rounded, color: Colors.orange, size: 36),
+                      const SizedBox(height: 12),
+                      const Text('Registration Closed',
+                        style: TextStyle(fontWeight: FontWeight.bold,
+                            fontSize: 16, color: Color(0xFF0D2137))),
+                      if (notes.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(notes,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),
-          )),
+          );
+        }
 
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _visitors.length >= 4 ? null : _addVisitor,
-              icon: const Icon(Icons.person_add_rounded),
-              label: const Text('Add Family Member'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF009688),
-                side: const BorderSide(color: Color(0xFF009688)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        // Registration open — show form
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Event banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D2137), Color(0xFF1E4080)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D2137).withValues(alpha: 0.3),
+                      blurRadius: 12, offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.celebration_rounded,
+                              color: Color(0xFF009688), size: 28),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(eventName,
+                                style: const TextStyle(color: Colors.white,
+                                    fontSize: 20, fontWeight: FontWeight.bold)),
+                              Text('PSG Institutions',
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        _eventInfoChip(Icons.calendar_today_rounded, dateStr),
+                        const SizedBox(width: 10),
+                        Expanded(child: _eventInfoChip(Icons.location_on_rounded, venue)),
+                      ],
+                    ),
+                    if (notes.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(notes,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12, height: 1.4)),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: controller.isSubmitting ? null : _submitRegistration,
-              icon: controller.isSubmitting
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.celebration_rounded),
-              label: Text(controller.isSubmitting ? 'Registering...' : 'Register for Hostel Day'),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF0D2137),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              // Session selection
+              const Text('Select Your Session',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D2137))),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedTimeSlot,
+                decoration: InputDecoration(
+                  labelText: 'Session',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.access_time_rounded,
+                      color: Color(0xFF009688)),
+                ),
+                items: _timeSlots
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedTimeSlot = val),
               ),
-            ),
+              const SizedBox(height: 24),
+
+              // Your details
+              const Text('Your Details',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D2137))),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  children: [
+                    _infoRow('Name', profile.displayName, Icons.person_rounded),
+                    const Divider(height: 20),
+                    _infoRow('Roll Number', profile.rollNumber, Icons.badge_rounded),
+                    const Divider(height: 20),
+                    _infoRow('Room', profile.roomNumber, Icons.meeting_room_rounded),
+                    const Divider(height: 20),
+                    _infoRow('Programme', profile.programme, Icons.school_rounded),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Family members
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Family Members',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                        color: Color(0xFF0D2137))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D2137).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('${_visitors.length}/$maxVisitors',
+                      style: const TextStyle(fontWeight: FontWeight.bold,
+                          fontSize: 13, color: Color(0xFF0D2137))),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('Invite up to $maxVisitors family members to attend with you',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              const SizedBox(height: 12),
+
+              ..._visitors.map((v) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: const Color(0xFF009688).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor:
+                          const Color(0xFF009688).withValues(alpha: 0.1),
+                      child: const Icon(Icons.person, size: 18,
+                          color: Color(0xFF009688)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(v.name, style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('${v.relation} • ${v.mobile}',
+                            style: TextStyle(
+                                color: Colors.grey.shade600, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline,
+                          color: Colors.red, size: 20),
+                      onPressed: () => setState(() => _visitors.remove(v)),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              )),
+
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _visitors.length >= maxVisitors ? null : _addVisitor,
+                  icon: const Icon(Icons.person_add_rounded),
+                  label: const Text('Add Family Member'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF009688),
+                    side: const BorderSide(color: Color(0xFF009688)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: controller.isSubmitting
+                      ? null
+                      : () => _submitRegistrationWithDate(eventDate!, profile),
+                  icon: controller.isSubmitting
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.celebration_rounded),
+                  label: Text(controller.isSubmitting
+                      ? 'Registering...' : 'Register for Hostel Day'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D2137),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
-          const SizedBox(height: 24),
+        );
+      },
+    );
+  }
+
+  Widget _eventInfoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(label,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+              overflow: TextOverflow.ellipsis),
+          ),
         ],
       ),
     );
