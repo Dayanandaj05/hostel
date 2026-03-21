@@ -51,7 +51,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     _Action('Add Users', Icons.person_add_rounded, AppRoutes.adminUsers),
     _Action('Assign Roles', Icons.admin_panel_settings_rounded, AppRoutes.adminRoles),
     _Action('Allocate Rooms', Icons.meeting_room_rounded, AppRoutes.adminRooms),
-    _Action('Manage Menu', Icons.restaurant_menu_rounded, AppRoutes.adminMessMenu),
+    _Action('Statistics', Icons.analytics_rounded, AppRoutes.adminDashboard),
     _Action('Notices', Icons.campaign_rounded, AppRoutes.adminNotices),
     _Action('Hostel Day', Icons.celebration_rounded, AppRoutes.adminHostelDay),
   ];
@@ -69,9 +69,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               icon: const Icon(Icons.logout_rounded,
                   color: PsgColors.primary, size: 22),
               onPressed: () async {
-                final router = GoRouter.of(context);
                 await AuthProviderController.of(context).signOut();
-                router.go(AppRoutes.login);
+                if (mounted) context.go(AppRoutes.login);
               },
             ),
           ],

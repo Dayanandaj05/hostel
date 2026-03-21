@@ -1,9 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Student Dashboard  —  Glassmorphism UI
 // ─────────────────────────────────────────────────────────────────────────────
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -11,9 +13,6 @@ import '../../../../../app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 import '../../../../student/data/student_profile_provider.dart';
 import '../../../../../core/design/psg_design_system.dart';
-import '../../../../leave/presentation/pages/student/leave_request_screen.dart';
-import '../../../../mess/presentation/pages/student/book_token_screen.dart';
-import 'student_profile_screen.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -94,17 +93,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   Widget _buildBody(StudentProfileProvider profile) {
     return switch (_navIndex) {
       0 => _homeTab(profile),
-      1 => _messScreen(), // PSG Book Token Screen
-      2 => _leaveTab(),
-      3 => _profileTab(),
+      1 => _messTab(profile),
+      2 => _feesTab(profile),
+      3 => _noticesTab(),
       _ => _homeTab(profile),
     };
   }
-
-  // New tab builders
-  Widget _messScreen() => const BookTokenScreen(); // This will point to features/mess/...
-  Widget _leaveTab() => const LeaveRequestScreen();
-  Widget _profileTab() => const StudentProfileScreen();
 
   Widget _homeTab(StudentProfileProvider profile) {
     return ListView(
@@ -146,7 +140,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                             color: PsgColors.secondary)),
                     const SizedBox(height: 4),
                     Text(profile.roomId ?? 'Room 402-B',
-                        style: PsgText.headline(28, color: PsgColors.primary)),
+                        style: PsgText.headline(34, color: PsgColors.primary)),
                   ]),
                   const Icon(Icons.qr_code_2_rounded,
                       color: PsgColors.primary, size: 32),
@@ -179,43 +173,220 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         ),
         const SizedBox(height: 14),
 
-        // ── Stat Row
+        // ── Mini stats
         StaggeredEntry(
           index: 2,
           child: Row(children: [
+            Expanded(child: _statCard('5', 'Leave Bal', isGreen: false)),
+            const SizedBox(width: 10),
             Expanded(child: _statCard('2', 'Tokens', isGreen: false)),
             const SizedBox(width: 10),
             Expanded(child: _statCard('₹0', 'Fees Due', isGreen: true)),
           ]),
         ),
-        const SizedBox(height: 20),
-
-        // ── Mess Component (Next Meal)
-        StaggeredEntry(
-          index: 3,
-          child: _messComponent(),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
         // ── Feature grid
         StaggeredEntry(
-          index: 4,
+          index: 3,
           child: PsgSectionHeader(title: 'Quick Actions', action: 'View All'),
         ),
-        StaggeredEntry(
-          index: 5,
-          child: _featureGrid(),
+        const SizedBox(height: 16),
+        _featureGrid(),
+      ],
+    );
+  }
+
+  // ── Mess tab ─────────────────────────────────────────────────────────────
+  Widget _messTab(StudentProfileProvider profile) {
+    return ListView(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 88,
+        bottom: 130, left: 24, right: 24,
+      ),
+      children: [
+        Text('Mess Details',
+            style: PsgText.headline(28, color: PsgColors.primary)),
+        const SizedBox(height: 20),
+        GlassCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _messInfoRow('Current Mess', profile.messType),
+            const Divider(height: 24),
+            _messInfoRow('Supervisor', profile.messSupervisors.firstOrNull ?? 'N/A'),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        if (!profile.isNorthIndianMess)
+          PsgFilledButton(
+            label: 'Apply for North Indian Mess',
+            icon: Icons.swap_horiz_rounded,
+            onPressed: () => context.go(AppRoutes.studentMessApplication),
+          ),
+      ],
+    );
+  }
+
+  Widget _messInfoRow(String label, String value) {
+    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(label,
+          style: PsgText.body(13,
+              color: PsgColors.onSurfaceVariant,
+              weight: FontWeight.w500)),
+      Text(value,
+          style: PsgText.label(14, color: PsgColors.onSurface)),
+    ]);
+  }
+
+  // ── Fees tab ──────────────────────────────────────────────────────────────
+  Widget _feesTab(StudentProfileProvider profile) {
+    return ListView(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 88,
+        bottom: 130, left: 24, right: 24,
+      ),
+      children: [
+        Text('Fee Summary',
+            style: PsgText.headline(28, color: PsgColors.primary)),
+        const SizedBox(height: 20),
+        Row(children: [
+          Expanded(
+              child: _feeCard('Establishment',
+                  '₹${profile.establishment}', PsgColors.primary)),
+          const SizedBox(width: 10),
+          Expanded(
+              child: _feeCard(
+                  'Deposit', '₹${profile.deposit}', const Color(0xFF4F46E5))),
+          const SizedBox(width: 10),
+          Expanded(
+              child: _feeCard('Balance', '₹${profile.balance}',
+                  profile.balance > 0
+                      ? PsgColors.green
+                      : PsgColors.error)),
+        ]),
+        const SizedBox(height: 24),
+        PsgFilledButton(
+          label: 'Pay Now',
+          icon: Icons.payments_rounded,
+          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Redirecting to payment portal…'))),
         ),
       ],
     );
   }
 
+  Widget _feeCard(String label, String amount, Color color) {
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      borderRadius: 14,
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text(amount,
+            style: PsgText.headline(16, color: color),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 4),
+        Text(label,
+            style: PsgText.label(9,
+                letterSpacing: 0.6,
+                color: PsgColors.onSurfaceVariant),
+            textAlign: TextAlign.center),
+      ]),
+    );
+  }
+
+  // ── Notices tab ──────────────────────────────────────────────────────────
+  Widget _noticesTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notices')
+          .where('isActive', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.campaign_outlined,
+                    size: 64, color: Colors.grey.shade300),
+                const SizedBox(height: 12),
+                Text('No notices yet',
+                    style: PsgText.body(15,
+                        color: PsgColors.onSurfaceVariant)),
+              ],
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 88,
+            bottom: 130, left: 24, right: 24,
+          ),
+          itemCount: docs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (ctx, i) {
+            final d = docs[i].data() as Map<String, dynamic>;
+            final ts = d['createdAt'] as Timestamp?;
+            final date = ts != null
+                ? DateFormat('dd MMM yyyy').format(ts.toDate())
+                : '';
+            return StaggeredEntry(
+              index: i,
+              child: GlassCard(
+                borderRadius: 16,
+                padding: const EdgeInsets.all(18),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        color: PsgColors.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.announcement_rounded,
+                        color: PsgColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(d['title'] ?? '',
+                          style: PsgText.label(14,
+                              color: PsgColors.onSurface),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 3),
+                      Text(d['body'] ?? '',
+                          style: PsgText.body(12,
+                              color: PsgColors.onSurfaceVariant),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text(date,
+                          style: PsgText.label(10,
+                              letterSpacing: 0.4,
+                              color: PsgColors.outline)),
+                    ]),
+                  ),
+                ]),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   // ── Feature grid ─────────────────────────────────────────────────────────
   Widget _featureGrid() {
     final modules = [
       _Mod('Leave', Icons.flight_takeoff_rounded,
           AppRoutes.studentLeave, const Color(0xFFEFF6FF), const Color(0xFF003F87)),
+      _Mod('Food Token', Icons.confirmation_number_rounded,
+          AppRoutes.studentTokens, const Color(0xFFEFFEFE), const Color(0xFF366288)),
       _Mod('T-Shirt', Icons.checkroom_rounded,
           AppRoutes.studentTShirt, const Color(0xFFEEF2FF), const Color(0xFF4F46E5)),
       _Mod('Hostel Day', Icons.celebration_rounded,
@@ -226,8 +397,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           AppRoutes.studentComplaints, const Color(0xFFFFF1F2), const Color(0xFFBA1A1A)),
       _Mod('Notices', Icons.notifications_active_rounded,
           AppRoutes.studentNotices, const Color(0xFFFAF5FF), const Color(0xFF7C3AED)),
-      _Mod('Fees', Icons.payments_rounded,
-          AppRoutes.studentFees, const Color(0xFFF0FDF4), const Color(0xFF15803D)),
+      _Mod('Profile', Icons.person_rounded,
+          AppRoutes.studentProfile, const Color(0xFFF8FAFC), const Color(0xFF475569)),
       _Mod('Contact', Icons.support_agent_rounded,
           AppRoutes.studentContact, const Color(0xFFF0FDF4), const Color(0xFF15803D)),
     ];
@@ -257,7 +428,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
-                          color: m.fg.withValues(alpha: 0.1),
+                          color: m.fg.withOpacity(0.15),
                           blurRadius: 12,
                           offset: const Offset(0, 4))
                     ],
@@ -277,94 +448,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           ),
         );
       },
-    );
-  }
-
-  Widget _messComponent() {
-    final now = DateTime.now();
-    final hour = now.hour;
-    String nextMeal = 'Breakfast';
-    IconData mealIcon = Icons.coffee_rounded;
-    
-    if (hour >= 10 && hour < 15) {
-      nextMeal = 'Lunch';
-      mealIcon = Icons.lunch_dining_rounded;
-    } else if (hour >= 15 && hour < 22) {
-      nextMeal = 'Dinner';
-      mealIcon = Icons.dinner_dining_rounded;
-    }
-
-    final uid = AuthProviderController.of(context).user?.uid;
-
-    return GlassCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('MESS UPDATES',
-                  style: PsgText.label(9,
-                      letterSpacing: 1.6, color: PsgColors.secondary)),
-              const Icon(Icons.restaurant_rounded,
-                  color: PsgColors.primary, size: 20),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  color: PsgColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(mealIcon, color: PsgColors.primary, size: 26),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Next: $nextMeal',
-                        style: PsgText.headline(18, color: PsgColors.primary)),
-                    const SizedBox(height: 2),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('food_tokens')
-                          .where('userId', isEqualTo: uid)
-                          .where('date', isEqualTo: DateFormat('yyyy-MM-dd').format(now))
-                          .where('meal', isEqualTo: nextMeal)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        final booked = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
-                        return Text(
-                          booked ? '• Token Booked' : '• No Token Found',
-                          style: PsgText.body(12,
-                              weight: FontWeight.w600,
-                              color: booked ? PsgColors.green : PsgColors.amber),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () => setState(() => _navIndex = 1),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: PsgColors.primary,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text('BOOK', style: PsgText.label(11, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -456,13 +539,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             activeIcon: Icons.home_rounded,
             label: 'HOME'),
         PsgNavItem(
-            icon: Icons.confirmation_number_outlined,
-            activeIcon: Icons.confirmation_number_rounded,
-            label: 'BOOK'),
+            icon: Icons.restaurant_outlined,
+            activeIcon: Icons.restaurant_rounded,
+            label: 'MESS'),
         PsgNavItem(
-            icon: Icons.flight_takeoff_outlined,
-            activeIcon: Icons.flight_takeoff_rounded,
-            label: 'LEAVE'),
+            icon: Icons.payments_outlined,
+            activeIcon: Icons.payments_rounded,
+            label: 'FEES'),
+        PsgNavItem(
+            icon: Icons.notifications_outlined,
+            activeIcon: Icons.notifications_rounded,
+            label: 'NOTICES'),
         PsgNavItem(
             icon: Icons.person_outlined,
             activeIcon: Icons.person_rounded,

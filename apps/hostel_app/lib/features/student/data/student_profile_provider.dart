@@ -7,6 +7,7 @@ class StudentProfileProvider extends ChangeNotifier {
   StudentProfileProvider(this._firestore);
 
   final FirebaseFirestore _firestore;
+  String? _currentUid;
   StreamSubscription? _subscription;
 
   Map<String, dynamic>? profileData;
@@ -14,8 +15,13 @@ class StudentProfileProvider extends ChangeNotifier {
   String? error;
 
   void startWatching(String uid) {
-    isLoading = true;
-    notifyListeners();
+    if (_currentUid == uid && _subscription != null) return;
+    _currentUid = uid;
+
+    if (!isLoading) {
+      isLoading = true;
+      notifyListeners();
+    }
 
     _subscription?.cancel();
     _subscription = _firestore
@@ -54,6 +60,7 @@ class StudentProfileProvider extends ChangeNotifier {
   String get roomType => profileData?['roomType'] as String? ?? '--';
   String get floor => profileData?['floor'] as String? ?? '--';
   String get joiningDate => profileData?['joiningDate'] as String? ?? '--';
+  String get roomId => profileData?['roomId'] as String? ?? '--';
   String get messName => profileData?['messName'] as String? ?? '--';
   // South Indian by default; 'North Indian' if opted in
   String get messType => profileData?['messType'] as String? ?? 'South Indian';

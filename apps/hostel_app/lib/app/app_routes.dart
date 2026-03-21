@@ -29,6 +29,7 @@ abstract class AppRoutes {
   static const adminUsers = '/admin/users';
   static const adminRoles = '/admin/roles';
   static const adminRooms = '/admin/rooms';
+  static const String adminMessMenu = '/admin/mess-menu';
   static const adminNotices = '/admin/notices';
   static const adminDashboard = '/admin/dashboard';
   static const adminHostelDay = '/admin/hostel-day';

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../features/auth/presentation/controllers/auth_provider_controller.dart';
-import '../core/theme/theme.dart';
+import '../core/design/psg_design_system.dart';
 import 'app_router.dart';
 
 class HostelManagementApp extends StatefulWidget {
@@ -28,9 +28,7 @@ class _HostelManagementAppState extends State<HostelManagementApp> {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Hostel Management System',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      theme: PsgTheme.light,
       routerConfig: _router,
     );
   }

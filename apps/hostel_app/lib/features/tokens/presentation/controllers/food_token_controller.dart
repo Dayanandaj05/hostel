@@ -13,6 +13,7 @@ class FoodTokenController extends ChangeNotifier {
   String? _successMessage;
   List<FoodTokenModel> _myTokens = [];
   StreamSubscription? _subscription;
+  String? _currentUserId;
 
   bool get isSubmitting => _isSubmitting;
   bool get isLoading => _isLoading;
@@ -21,9 +22,15 @@ class FoodTokenController extends ChangeNotifier {
   List<FoodTokenModel> get myTokens => _myTokens;
 
   void startWatchingTokens(String userId) {
+    if (_currentUserId == userId && _subscription != null) return;
+    _currentUserId = userId;
+    
     _subscription?.cancel();
-    _isLoading = true;
-    notifyListeners();
+    if (!_isLoading) {
+      _isLoading = true;
+      notifyListeners();
+    }
+    
     _subscription = _repository.watchMyTokens(userId).listen(
       (tokens) {
         _myTokens = tokens;

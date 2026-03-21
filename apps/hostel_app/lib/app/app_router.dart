@@ -12,6 +12,7 @@ import '../features/complaints/presentation/controllers/complaint_controller.dar
 import '../features/complaints/presentation/pages/student/complaint_submission_screen.dart';
 import '../features/complaints/presentation/pages/warden/warden_complaints_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_dashboard_screen.dart';
+import '../features/dashboard/presentation/pages/admin/admin_mess_menu_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_notice_post_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_role_assignment_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_room_allocation_screen.dart';
@@ -19,7 +20,7 @@ import '../features/dashboard/presentation/pages/admin/admin_statistics_screen.d
 import '../features/dashboard/presentation/pages/admin/admin_user_management_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_hostel_day_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_dashboard_screen.dart';
-import '../features/tokens/presentation/pages/student/book_token_screen.dart';
+import '../features/mess/presentation/pages/student/book_token_screen.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
 import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
 import '../features/dayentry/presentation/pages/student/day_entry_screen.dart';
@@ -46,13 +47,10 @@ abstract class AppRouter {
         final isLoginRoute = location == AppRoutes.login;
 
         if (!authProvider.isAuthenticated) {
-          // Unauthenticated users can only be on the login page.
           return isLoginRoute ? null : AppRoutes.login;
         }
 
-        // isAuthenticated guarantees _user != null and role is set.
         final role = authProvider.role!;
-
         final roleHome = switch (role) {
           UserRole.student => AppRoutes.studentHome,
           UserRole.warden => AppRoutes.wardenHome,
@@ -63,9 +61,7 @@ abstract class AppRouter {
           return roleHome;
         }
 
-        if (location == AppRoutes.unauthorized) {
-          return null;
-        }
+        if (location == AppRoutes.unauthorized) return null;
 
         final allowedPrefix = switch (role) {
           UserRole.student => '/student',
@@ -82,138 +78,165 @@ abstract class AppRouter {
       routes: [
         GoRoute(
           path: AppRoutes.splash,
-          builder: (_, __) => const SplashScreen(),
+          pageBuilder: (context, state) => _buildPage(const SplashScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.login,
-          builder: (_, __) => const LoginScreen(),
+          pageBuilder: (context, state) => _buildPage(const LoginScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.unauthorized,
-          builder: (_, __) => const _UnauthorizedPage(),
+          pageBuilder: (context, state) => _buildPage(const _UnauthorizedPage(), state),
         ),
+        
+        // --- Student Routes ---
         GoRoute(
           path: AppRoutes.studentHome,
-          builder: (_, __) => const StudentDashboardScreen(),
+          pageBuilder: (context, state) => _buildPage(const StudentDashboardScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentRoom,
-          builder: (_, __) => const StudentRoomScreen(),
+          pageBuilder: (context, state) => _buildPage(const StudentRoomScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentLeave,
-          builder: (context, _) => const LeaveRequestScreen(),
+          pageBuilder: (context, state) => _buildPage(const LeaveRequestScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentComplaints,
-          builder: (context, _) => ChangeNotifierProvider<ComplaintController>(
-            create: (_) => ComplaintController(
-              context.read<ComplaintRepository>(),
-            ),
-            child: const ComplaintSubmissionScreen(),
-          ),
+          pageBuilder: (context, state) => _buildPage(
+            ChangeNotifierProvider<ComplaintController>(
+              create: (_) => ComplaintController(context.read<ComplaintRepository>()),
+              child: const ComplaintSubmissionScreen(),
+            ), state),
         ),
         GoRoute(
           path: AppRoutes.studentNotices,
-          builder: (_, __) => const StudentNoticesScreen(),
+          pageBuilder: (context, state) => _buildPage(const StudentNoticesScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentTokens,
-          builder: (context, state) => const BookTokenScreen(),
+          pageBuilder: (context, state) => _buildPage(const BookTokenScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentTShirt,
-          builder: (context, state) => const TShirtScreen(),
+          pageBuilder: (context, state) => _buildPage(const TShirtScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentMyTokens,
-          builder: (_, __) => const MyTokensScreen(),
+          pageBuilder: (context, state) => _buildPage(const MyTokensScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentMyTShirts,
-          builder: (_, __) => const TShirtListScreen(),
+          pageBuilder: (context, state) => _buildPage(const TShirtListScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentDayEntry,
-          builder: (_, __) => const DayEntryScreen(),
+          pageBuilder: (context, state) => _buildPage(const DayEntryScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentProfile,
-          builder: (_, __) => const StudentProfileScreen(),
+          pageBuilder: (context, state) => _buildPage(const StudentProfileScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentMess,
-          builder: (_, __) => const _PlaceholderPage(
+          pageBuilder: (context, state) => _buildPage(const _PlaceholderPage(
             title: 'Mess Details',
             description: 'View mess information and billing.',
-          ),
+          ), state),
         ),
         GoRoute(
           path: '/student/mess-application',
-          builder: (context, state) => const MessApplicationScreen(),
+          pageBuilder: (context, state) => _buildPage(const MessApplicationScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentFees,
-          builder: (_, __) => const StudentFeesScreen(),
+          pageBuilder: (context, state) => _buildPage(const StudentFeesScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.studentContact,
-          builder: (_, __) => const StudentContactScreen(),
+          pageBuilder: (context, state) => _buildPage(const StudentContactScreen(), state),
         ),
+
+        // --- Warden Routes ---
         GoRoute(
           path: AppRoutes.wardenHome,
-          builder: (_, __) => const WardenDashboardScreen(),
+          pageBuilder: (context, state) => _buildPage(const WardenDashboardScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.wardenLeaveRequests,
-          builder: (_, __) => const WardenLeaveRequestsScreen(),
+          pageBuilder: (context, state) => _buildPage(const WardenLeaveRequestsScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.wardenMessApplications,
-          builder: (_, __) => const WardenMessApplicationsScreen(),
+          pageBuilder: (context, state) => _buildPage(const WardenMessApplicationsScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.wardenComplaints,
-          builder: (context, _) => ChangeNotifierProvider<ComplaintController>(
-            create: (_) => ComplaintController(
-              context.read<ComplaintRepository>(),
-            ),
-            child: const WardenComplaintsScreen(),
-          ),
+          pageBuilder: (context, state) => _buildPage(
+            ChangeNotifierProvider<ComplaintController>(
+              create: (_) => ComplaintController(context.read<ComplaintRepository>()),
+              child: const WardenComplaintsScreen(),
+            ), state),
         ),
         GoRoute(
           path: AppRoutes.wardenNotices,
-          builder: (_, __) => const WardenNoticeScreen(),
+          pageBuilder: (context, state) => _buildPage(const WardenNoticeScreen(), state),
         ),
+
+        // --- Admin Routes ---
         GoRoute(
           path: AppRoutes.adminHome,
-          builder: (_, __) => const AdminDashboardScreen(),
+          pageBuilder: (context, state) => _buildPage(const AdminDashboardScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.adminUsers,
-          builder: (_, __) => const AdminUserManagementScreen(),
+          pageBuilder: (context, state) => _buildPage(const AdminUserManagementScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.adminRoles,
-          builder: (_, __) => const AdminRoleAssignmentScreen(),
+          pageBuilder: (context, state) => _buildPage(const AdminRoleAssignmentScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.adminRooms,
-          builder: (_, __) => const AdminRoomAllocationScreen(),
+          pageBuilder: (context, state) => _buildPage(const AdminRoomAllocationScreen(), state),
+        ),
+        GoRoute(
+          path: AppRoutes.adminMessMenu,
+          pageBuilder: (context, state) => _buildPage(const AdminMessMenuScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.adminNotices,
-          builder: (_, __) => const AdminNoticePostScreen(),
+          pageBuilder: (context, state) => _buildPage(const AdminNoticePostScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.adminDashboard,
-          builder: (_, __) => const AdminStatisticsScreen(),
+          pageBuilder: (context, state) => _buildPage(const AdminStatisticsScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.adminHostelDay,
-          builder: (_, __) => const AdminHostelDayScreen(),
+          pageBuilder: (context, state) => _buildPage(const AdminHostelDayScreen(), state),
         ),
       ],
+    );
+  }
+
+  static CustomTransitionPage _buildPage(Widget child, GoRouterState state) {
+    return CustomTransitionPage(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.01, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }

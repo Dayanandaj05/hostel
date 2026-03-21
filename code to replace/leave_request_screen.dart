@@ -4,11 +4,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../../app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 import '../../../../../core/design/psg_design_system.dart';
+import '../../../presentation/controllers/leave_request_controller.dart';
 
 class LeaveRequestScreen extends StatefulWidget {
   const LeaveRequestScreen({super.key});
@@ -207,50 +210,76 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
                                 style: PsgText.body(14,
                                     color: PsgColors.onSurfaceVariant)));
                       }
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: docs.length,
-                        itemBuilder: (ctx, i) {
-                          final data = docs[i].data() as Map<String, dynamic>;
-                          final reason = data['reason'] as String? ?? '';
-                          final status = data['status'] as String? ?? 'pending';
-                          final fromTs = data['fromDate'] as Timestamp?;
-                          final toTs = data['toDate'] as Timestamp?;
-                          final from = fromTs?.toDate();
-                          final to = toTs?.toDate();
-                          
+                      return Column(
+                        children: List.generate(docs.length, (i) {
+                          final d =
+                              docs[i].data() as Map<String, dynamic>;
+                          final status =
+                              d['status'] as String? ?? 'pending';
+                          final fromTs = d['fromDate'] as Timestamp?;
+                          final toTs = d['toDate'] as Timestamp?;
+                          final from = fromTs != null
+                              ? DateFormat('dd MMM yyyy')
+                                  .format(fromTs.toDate())
+                              : '–';
+                          final to = toTs != null
+                              ? DateFormat('dd MMM yyyy')
+                                  .format(toTs.toDate())
+                              : '–';
+                          final days = (fromTs != null && toTs != null)
+                              ? toTs
+                                      .toDate()
+                                      .difference(fromTs.toDate())
+                                      .inDays +
+                                  1
+                              : 0;
+                          final reason = d['reason'] as String? ?? '';
+
                           return StaggeredEntry(
-                            index: i,
+                            index: i + 3,
                             child: Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.only(bottom: 10),
                               child: GlassCard(
                                 borderRadius: 16,
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 14),
                                 child: Row(children: [
-                                  _statusIcon(status),
+                                  Container(
+                                    width: 44, height: 44,
+                                    decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withOpacity(0.50),
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                    child: const Icon(
+                                        Icons.calendar_today_rounded,
+                                        color: PsgColors.primary,
+                                        size: 20),
+                                  ),
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(reason, style: PsgText.label(14, color: PsgColors.primary)),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          from != null && to != null
-                                            ? '${DateFormat('dd MMM').format(from)} - ${DateFormat('dd MMM').format(to)}'
-                                            : '–',
-                                          style: PsgText.body(12, color: PsgColors.onSurfaceVariant),
-                                        ),
-                                      ],
-                                    ),
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                      Text('$from – $to',
+                                          style: PsgText.label(13,
+                                              color: PsgColors.onSurface)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                          '$reason • $days day${days == 1 ? '' : 's'}',
+                                          style: PsgText.body(11,
+                                              color: PsgColors
+                                                  .onSurfaceVariant,
+                                              weight: FontWeight.w500)),
+                                    ]),
                                   ),
-                                  _statusChip(status),
+                                  PsgStatusChip.fromString(status),
                                 ]),
                               ),
                             ),
                           );
-                        },
+                        }),
                       );
                     },
                   ),
@@ -258,52 +287,6 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _statusIcon(String status) {
-    IconData icon;
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'approved':
-        icon = Icons.check_circle_rounded;
-        color = PsgColors.green;
-        break;
-      case 'rejected':
-        icon = Icons.cancel_rounded;
-        color = PsgColors.error;
-        break;
-      default:
-        icon = Icons.pending_actions_rounded;
-        color = PsgColors.primary;
-    }
-    return Container(
-      width: 44, height: 44,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(icon, color: color, size: 22),
-    );
-  }
-
-  Widget _statusChip(String status) {
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'approved': color = PsgColors.green; break;
-      case 'rejected': color = PsgColors.error; break;
-      default: color = PsgColors.primary;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status.toUpperCase(),
-        style: PsgText.label(9, letterSpacing: 0.5, color: color),
       ),
     );
   }

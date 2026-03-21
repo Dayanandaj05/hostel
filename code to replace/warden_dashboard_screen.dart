@@ -4,6 +4,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../app/app_routes.dart';
@@ -62,9 +63,8 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
               icon: const Icon(Icons.logout_rounded,
                   color: PsgColors.primary, size: 22),
               onPressed: () async {
-                final router = GoRouter.of(context);
                 await AuthProviderController.of(context).signOut();
-                router.go(AppRoutes.login);
+                if (mounted) context.go(AppRoutes.login);
               },
             ),
           ],
@@ -316,10 +316,10 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
         const SizedBox(height: 14),
         Row(children: [
           const Icon(Icons.calendar_today_rounded,
-               size: 13, color: PsgColors.secondary),
+              size: 13, color: PsgColors.secondary),
           const SizedBox(width: 6),
           Text('$from – $to  ($days day${days == 1 ? '' : 's'})',
-               style: PsgText.label(12,
+              style: PsgText.label(12,
                   color: PsgColors.secondary, letterSpacing: 0.2)),
         ]),
         if (description.isNotEmpty) ...[
