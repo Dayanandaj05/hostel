@@ -63,28 +63,108 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   child: Column(
                     children: [
                       _buildSection('Academic Information', [
-                        _InfoRow('Programme', profile.programme, Icons.school_rounded, copyable: false),
-                        _InfoRow('Year of Study', profile.yearOfStudy, Icons.calendar_today_rounded, copyable: false),
-                        _InfoRow('Roll Number', profile.rollNumber, Icons.badge_rounded, copyable: true),
-                        _InfoRow('Email', profile.email, Icons.email_rounded, copyable: true),
+                        _InfoRow(
+                          'Programme',
+                          profile.programme,
+                          Icons.school_rounded,
+                          copyable: false,
+                        ),
+                        _InfoRow(
+                          'Year of Study',
+                          profile.yearOfStudy,
+                          Icons.calendar_today_rounded,
+                          copyable: false,
+                        ),
+                        _InfoRow(
+                          'Roll Number',
+                          profile.rollNumber,
+                          Icons.badge_rounded,
+                          copyable: true,
+                        ),
+                        _InfoRow(
+                          'Email',
+                          profile.email,
+                          Icons.email_rounded,
+                          copyable: true,
+                        ),
                       ]),
                       _buildSection('Hostel Information', [
-                        _InfoRow('Hostel', profile.hostelName, Icons.home_rounded, copyable: false),
-                        _InfoRow('Block', profile.blockName, Icons.apartment_rounded, copyable: false),
-                        _InfoRow('Room Number', profile.roomNumber, Icons.meeting_room_rounded, copyable: true),
-                        _InfoRow('Room Type', profile.roomType, Icons.bed_rounded, copyable: false),
-                        _InfoRow('Floor', profile.floor, Icons.layers_rounded, copyable: false),
-                        _InfoRow('Joining Date', profile.joiningDate, Icons.event_rounded, copyable: false),
+                        _InfoRow(
+                          'Hostel',
+                          profile.hostelName,
+                          Icons.home_rounded,
+                          copyable: false,
+                        ),
+                        _InfoRow(
+                          'Block',
+                          profile.blockName,
+                          Icons.apartment_rounded,
+                          copyable: false,
+                        ),
+                        _InfoRow(
+                          'Room Number',
+                          profile.roomNumber,
+                          Icons.meeting_room_rounded,
+                          copyable: true,
+                        ),
+                        _InfoRow(
+                          'Room Type',
+                          profile.roomType,
+                          Icons.bed_rounded,
+                          copyable: false,
+                        ),
+                        _InfoRow(
+                          'Floor',
+                          profile.floor,
+                          Icons.layers_rounded,
+                          copyable: false,
+                        ),
+                        _InfoRow(
+                          'Joining Date',
+                          profile.joiningDate,
+                          Icons.event_rounded,
+                          copyable: false,
+                        ),
                       ]),
                       _buildSection('Contact Details', [
-                        _InfoRow('Phone', profile.contactPhone, Icons.phone_rounded, copyable: true),
-                        _InfoRow('Father Name', profile.fatherName, Icons.person_rounded, copyable: false),
-                        _InfoRow('Primary Mobile', profile.primaryMobile, Icons.phone_android_rounded, copyable: true),
-                        _InfoRow('Secondary Mobile', profile.secondaryMobile, Icons.phone_android_rounded, copyable: true),
-                        _InfoRow('Blood Group', profile.bloodGroup, Icons.bloodtype_rounded, copyable: false),
+                        _InfoRow(
+                          'Phone',
+                          profile.contactPhone,
+                          Icons.phone_rounded,
+                          copyable: true,
+                        ),
+                        _InfoRow(
+                          'Father Name',
+                          profile.fatherName,
+                          Icons.person_rounded,
+                          copyable: false,
+                        ),
+                        _InfoRow(
+                          'Primary Mobile',
+                          profile.primaryMobile,
+                          Icons.phone_android_rounded,
+                          copyable: true,
+                        ),
+                        _InfoRow(
+                          'Secondary Mobile',
+                          profile.secondaryMobile,
+                          Icons.phone_android_rounded,
+                          copyable: true,
+                        ),
+                        _InfoRow(
+                          'Blood Group',
+                          profile.bloodGroup,
+                          Icons.bloodtype_rounded,
+                          copyable: false,
+                        ),
                       ]),
                       _buildSection('Address', [
-                        _InfoRow('Address', profile.address, Icons.location_on_rounded, copyable: false),
+                        _InfoRow(
+                          'Address',
+                          profile.address,
+                          Icons.location_on_rounded,
+                          copyable: false,
+                        ),
                       ]),
                     ],
                   ),
@@ -121,7 +201,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   border: Border.all(color: const Color(0xFF009688), width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF009688).withOpacity(0.4),
+                      color: const Color(0xFF009688).withValues(alpha: 0.4),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -131,7 +211,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   radius: 42,
                   backgroundColor: const Color(0xFF009688),
                   child: Text(
-                    profile.displayName.isNotEmpty ? profile.displayName[0].toUpperCase() : 'S',
+                    profile.displayName.isNotEmpty
+                        ? profile.displayName[0].toUpperCase()
+                        : 'S',
                     style: const TextStyle(
                       fontSize: 38,
                       fontWeight: FontWeight.bold,
@@ -156,7 +238,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -173,7 +255,11 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             ),
             child: Text(
               profile.programme,
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -206,7 +292,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             children: [
               for (int i = 0; i < rows.length; i++) ...[
                 _buildRow(rows[i]),
-                if (i < rows.length - 1) Divider(height: 1, color: Colors.grey.shade100),
+                if (i < rows.length - 1)
+                  Divider(height: 1, color: Colors.grey.shade100),
               ],
             ],
           ),
@@ -234,7 +321,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                 const SizedBox(height: 2),
                 Text(
                   row.value,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -250,7 +340,11 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   ),
                 );
               },
-              child: Icon(Icons.copy_rounded, size: 16, color: Colors.grey.shade400),
+              child: Icon(
+                Icons.copy_rounded,
+                size: 16,
+                color: Colors.grey.shade400,
+              ),
             ),
         ],
       ),

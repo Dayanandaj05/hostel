@@ -144,8 +144,7 @@ class _BookTokenScreenState extends State<BookTokenScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        // ignore: deprecated_member_use
-                        value: _selectedMeal,
+                        initialValue: _selectedMeal,
                         isDense: true,
                         decoration: InputDecoration(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

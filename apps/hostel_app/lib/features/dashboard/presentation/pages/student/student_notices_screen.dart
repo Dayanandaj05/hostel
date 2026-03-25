@@ -1,159 +1,113 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../../app/app_routes.dart';
+import 'package:hostel_app/app/app_routes.dart';
+import 'package:hostel_app/core/design/psg_design_system.dart';
+import 'package:hostel_app/services/mock/mock_service.dart';
 
-class StudentNoticesScreen extends StatelessWidget {
+class StudentNoticesScreen extends StatefulWidget {
   const StudentNoticesScreen({super.key});
 
   @override
+  State<StudentNoticesScreen> createState() => _StudentNoticesScreenState();
+}
+
+class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0;
+  late Future<List<Map<String, dynamic>>> _noticesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(
+      () => setState(() => _scrollOffset = _scrollController.offset),
+    );
+    _noticesFuture = MockService.watchNotices().first;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0D2137),
-        foregroundColor: Colors.white,
-        title: const Text('Notices'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => context.go(AppRoutes.studentHome),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home_rounded),
-            onPressed: () => context.go(AppRoutes.studentHome),
+    return MeshBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
+        appBar: PsgGlassAppBar(
+          scrollOffset: _scrollOffset,
+          title: 'Notices',
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_rounded,
+              color: PsgColors.primary,
+              size: 20,
+            ),
+            onPressed: () => context.canPop()
+                ? context.pop()
+                : context.go(AppRoutes.studentHome),
           ),
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('notices')
-            .where('isActive', isEqualTo: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return const Center(child: Text('Unable to load notices.'));
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-
-          // Client-side sort by createdAt descending
-          final sorted = List.from(docs);
-          sorted.sort((a, b) {
-            final aTs = (a.data() as Map)['createdAt'] as Timestamp?;
-            final bTs = (b.data() as Map)['createdAt'] as Timestamp?;
-            if (aTs == null && bTs == null) return 0;
-            if (aTs == null) return 1;
-            if (bTs == null) return -1;
-            return bTs.compareTo(aTs);
-          });
-
-          if (sorted.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.campaign_outlined,
-                      size: 80, color: Colors.grey.shade200),
-                  const SizedBox(height: 16),
-                  const Text('No notices posted yet',
-                    style: TextStyle(
-                        color: Colors.grey, fontSize: 16)),
-                  const SizedBox(height: 6),
-                  Text('Check back later for updates',
-                    style: TextStyle(
-                        color: Colors.grey.shade400, fontSize: 13)),
-                ],
+        ),
+        body: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _noticesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const Center(child: Text('Unable to load notices.'));
+            }
+            final notices = (snapshot.data ?? [])
+                .where((n) => n['isActive'] == true)
+                .toList(growable: false);
+            if (notices.isEmpty) {
+              return const Center(child: Text('No data available'));
+            }
+            return ListView.separated(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
               ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: sorted.length,
-            itemBuilder: (context, index) {
-              final doc = sorted[index].data() as Map<String, dynamic>;
-              final title = doc['title'] as String? ?? 'Untitled';
-              final body = doc['body'] as String? ?? '';
-              final ts = doc['createdAt'] as Timestamp?;
-              String dateStr = '';
-              if (ts != null) {
-                final dt = ts.toDate();
-                dateStr =
-                    '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-              }
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 88,
+                bottom: 40,
+                left: 20,
+                right: 20,
+              ),
+              itemCount: notices.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final n = notices[index];
+                final createdAt = n['createdAt'] as DateTime?;
+                return GlassCard(
+                  borderRadius: 16,
+                  child: ListTile(
+                    title: Text(
+                      n['title']?.toString() ?? 'Notice',
+                      style: PsgText.label(14, color: PsgColors.primary),
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0D2137)
-                                  .withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.announcement_rounded,
-                                color: Color(0xFF0D2137), size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: Color(0xFF0D2137),
-                              )),
-                          ),
-                        ],
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(n['body']?.toString() ?? ''),
+                    ),
+                    trailing: Text(
+                      createdAt == null
+                          ? ''
+                          : '${createdAt.day}/${createdAt.month}/${createdAt.year}',
+                      style: PsgText.body(
+                        11,
+                        color: PsgColors.onSurfaceVariant,
                       ),
-                      if (body.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Text(body,
-                          style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 13,
-                              height: 1.5)),
-                      ],
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time_rounded,
-                              size: 12, color: Colors.grey.shade400),
-                          const SizedBox(width: 4),
-                          Text(dateStr,
-                            style: TextStyle(
-                                color: Colors.grey.shade400, fontSize: 11)),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

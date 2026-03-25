@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
@@ -16,42 +18,112 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
+  late AnimationController _entryController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutCubic,
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutQuart),
+        );
+    _entryController.forward();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _entryController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= _kBreakpoint;
-          if (wide) {
-            return Row(
-              children: [
-                Expanded(child: _BrandPanel()),
-                Expanded(child: _formPanel()),
+      body: Stack(
+        children: [
+          const _FrostedBackdrop(),
+          SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width >= _kBreakpoint
+                        ? 760
+                        : 560,
+                  ),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: _glassShell(_formPanel()),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _glassShell(Widget child) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.75),
+                Colors.white.withValues(alpha: 0.55),
               ],
-            );
-          }
-          return Column(
-            children: [
-              _CompactHeader(),
-              Expanded(child: _formPanel()),
+            ),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.85),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF003F87).withValues(alpha: 0.15),
+                blurRadius: 48,
+                offset: const Offset(0, 24),
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.5),
+                blurRadius: 20,
+                offset: const Offset(-1, -1),
+                spreadRadius: 0,
+              ),
             ],
-          );
-        },
+          ),
+          child: child,
+        ),
       ),
     );
   }
@@ -59,26 +131,55 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _formPanel() {
     return Column(
       children: [
-        // Role selector tabs
-        Container(
-          color: Colors.white,
-          child: TabBar(
-            controller: _tabController,
-            labelColor: _kNavy,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: _kTeal,
-            indicatorWeight: 3,
-            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            tabs: const [
-              Tab(text: 'Student'),
-              Tab(text: 'Warden'),
-              Tab(text: 'Admin'),
-            ],
+        const SizedBox(height: 20),
+        const _CompactHeader(),
+        const SizedBox(height: 18),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    width: 1,
+                  ),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: const Color(0xFF003F87),
+                  unselectedLabelColor: Colors.grey.shade600,
+                  indicatorColor: const Color(0xFF001F54),
+                  indicatorWeight: 3.5,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  tabs: const [
+                    Tab(text: '👤 Student'),
+                    Tab(text: '🔒 Warden'),
+                    Tab(text: '⚙️ Admin'),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
+        const SizedBox(height: 8),
         Expanded(
           child: TabBarView(
             controller: _tabController,
+            physics: const BouncingScrollPhysics(),
             children: const [
               _StudentLoginForm(),
               _StaffLoginForm(role: _StaffRole.warden),
@@ -92,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STUDENT LOGIN  (roll number → email@psgtech.hostel)
+// STUDENT LOGIN  (roll number → email@psgtech.ac.in)
 // ─────────────────────────────────────────────────────────────────────────────
 class _StudentLoginForm extends StatefulWidget {
   const _StudentLoginForm();
@@ -117,7 +218,7 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
 
   String _toEmail(String roll) {
     final input = roll.trim().toLowerCase();
-    return input.contains('@') ? input : '$input@psgtech.hostel';
+    return input.contains('@') ? input : '$input@psgtech.ac.in';
   }
 
   Future<void> _signIn(AuthProviderController auth) async {
@@ -141,11 +242,12 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
     await auth.sendPasswordResetEmail(_toEmail(roll));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent if account exists.')),
+        const SnackBar(
+          content: Text('Password reset email sent if account exists.'),
+        ),
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +260,10 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (_showBanner) _infoBanner(),
-              _heading('Student Sign In', 'Enter your roll number and password'),
+              _heading(
+                'Student Sign In',
+                'Enter your roll number and password',
+              ),
               const SizedBox(height: 24),
               Form(
                 key: _formKey,
@@ -170,23 +275,35 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
                       textCapitalization: TextCapitalization.characters,
                       decoration: InputDecoration(
                         labelText: 'Roll Number',
-                        hintText: 'e.g. 24MCA001',
+                        hintText: 'e.g. 25MX308',
                         prefixIcon: const Icon(Icons.badge_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Roll number required';
-                        if (v.trim().length < 5) return 'Min 5 characters';
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Roll number required';
+                        }
+                        if (v.trim().length < 5) {
+                          return 'Min 5 characters';
+                        }
                         return null;
                       },
                     ),
                     const SizedBox(height: 14),
-                    _passwordField(_passwordController, auth.isLoading,
-                        () => setState(() => _obscure = !_obscure), _obscure),
+                    _passwordField(
+                      _passwordController,
+                      auth.isLoading,
+                      () => setState(() => _obscure = !_obscure),
+                      _obscure,
+                    ),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: auth.isLoading ? null : () => _forgotPassword(auth),
+                        onPressed: auth.isLoading
+                            ? null
+                            : () => _forgotPassword(auth),
                         child: const Text('Forgot Password?'),
                       ),
                     ),
@@ -286,11 +403,12 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
     await auth.sendPasswordResetEmail(email);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent if account exists.')),
+        const SnackBar(
+          content: Text('Password reset email sent if account exists.'),
+        ),
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +423,10 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
               // Role badge
               Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: _isAdmin
                         ? Colors.deepPurple.withValues(alpha: 0.1)
@@ -341,8 +462,10 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
                 ),
               ),
               const SizedBox(height: 16),
-              _heading('$_roleLabel Sign In',
-                  'Use your institutional email address'),
+              _heading(
+                '$_roleLabel Sign In',
+                'Use your institutional email address',
+              ),
               const SizedBox(height: 24),
               Form(
                 key: _formKey,
@@ -355,21 +478,30 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
                       decoration: InputDecoration(
                         labelText: 'Email Address',
                         hintText: _isAdmin
-                            ? 'e.g. admin@psgtech.hostel'
-                            : 'e.g. warden@psgtech.hostel',
+                            ? 'e.g. admin@psgtech.ac.in'
+                            : 'e.g. warden@psgtech.ac.in',
                         prefixIcon: const Icon(Icons.email_outlined),
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Email required';
-                        if (!v.contains('@')) return 'Enter a valid email';
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Email required';
+                        }
+                        if (!v.contains('@')) {
+                          return 'Enter a valid email';
+                        }
                         return null;
                       },
                     ),
                     const SizedBox(height: 14),
-                    _passwordField(_passwordController, auth.isLoading,
-                        () => setState(() => _obscure = !_obscure), _obscure),
+                    _passwordField(
+                      _passwordController,
+                      auth.isLoading,
+                      () => setState(() => _obscure = !_obscure),
+                      _obscure,
+                    ),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -379,8 +511,11 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
                         child: const Text('Forgot Password?'),
                       ),
                     ),
-                    _signInButton(auth, () => _signIn(auth),
-                        label: 'Sign In as $_roleLabel'),
+                    _signInButton(
+                      auth,
+                      () => _signIn(auth),
+                      label: 'Sign In as $_roleLabel',
+                    ),
                     if (_error != null) _errorBox(_error!),
                   ],
                 ),
@@ -402,18 +537,29 @@ Widget _heading(String title, String subtitle) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(title,
-          style: const TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w700, color: _kNavy)),
+      Text(
+        title,
+        style: const TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          color: _kNavy,
+        ),
+      ),
       const SizedBox(height: 4),
-      Text(subtitle,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+      Text(
+        subtitle,
+        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+      ),
     ],
   );
 }
 
-Widget _passwordField(TextEditingController controller, bool loading,
-    VoidCallback toggleObscure, bool obscure) {
+Widget _passwordField(
+  TextEditingController controller,
+  bool loading,
+  VoidCallback toggleObscure,
+  bool obscure,
+) {
   return TextFormField(
     controller: controller,
     enabled: !loading,
@@ -423,9 +569,9 @@ Widget _passwordField(TextEditingController controller, bool loading,
       prefixIcon: const Icon(Icons.lock_outline),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       suffixIcon: IconButton(
-        icon: Icon(obscure
-            ? Icons.visibility_off_outlined
-            : Icons.visibility_outlined),
+        icon: Icon(
+          obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+        ),
         onPressed: toggleObscure,
       ),
     ),
@@ -437,8 +583,11 @@ Widget _passwordField(TextEditingController controller, bool loading,
   );
 }
 
-Widget _signInButton(AuthProviderController auth, VoidCallback onPressed,
-    {String label = 'Sign In'}) {
+Widget _signInButton(
+  AuthProviderController auth,
+  VoidCallback onPressed, {
+  String label = 'Sign In',
+}) {
   return Padding(
     padding: const EdgeInsets.only(top: 8),
     child: SizedBox(
@@ -447,7 +596,9 @@ Widget _signInButton(AuthProviderController auth, VoidCallback onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: _kNavy,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
         onPressed: auth.isLoading ? null : onPressed,
         child: auth.isLoading
@@ -455,10 +606,17 @@ Widget _signInButton(AuthProviderController auth, VoidCallback onPressed,
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: Colors.white))
-            : Text(label,
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                label,
                 style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600)),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     ),
   );
@@ -478,8 +636,10 @@ Widget _errorBox(String message) {
         Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(message,
-              style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+          child: Text(
+            message,
+            style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+          ),
         ),
       ],
     ),
@@ -490,109 +650,87 @@ Widget _helpText() {
   return Padding(
     padding: const EdgeInsets.only(top: 12),
     child: Center(
-      child: Text('Need help? Contact hostel office',
-          style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+      child: Text(
+        'Need help? Contact hostel office',
+        style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+      ),
     ),
   );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BRAND PANEL  (wide screens — left side)
-// ─────────────────────────────────────────────────────────────────────────────
-class _BrandPanel extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: _kNavy,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _PsgDiamondLogo(size: 90),
-              const SizedBox(height: 24),
-              const Text(
-                'PSG INSTITUTIONS',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.5),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Resident Portal',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 15,
-                    letterSpacing: 1),
-              ),
-              const SizedBox(height: 40),
-              ...[
-                _bullet(Icons.school_rounded, 'Student self-service portal'),
-                _bullet(Icons.manage_accounts_rounded, 'Warden management tools'),
-                _bullet(Icons.admin_panel_settings_rounded, 'Admin controls & analytics'),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _bullet(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: _kTeal, size: 18),
-          const SizedBox(width: 10),
-          Text(text,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85), fontSize: 14)),
-        ],
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPACT HEADER  (mobile — top strip)
 // ─────────────────────────────────────────────────────────────────────────────
 class _CompactHeader extends StatelessWidget {
+  const _CompactHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _PsgDiamondLogo(size: 52),
+        const SizedBox(height: 10),
+        const Text(
+          'PSG INSTITUTIONS',
+          style: TextStyle(
+            color: _kNavy,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          'Resident Portal',
+          style: TextStyle(color: _kNavy.withValues(alpha: 0.7), fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+class _FrostedBackdrop extends StatelessWidget {
+  const _FrostedBackdrop();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
       decoration: const BoxDecoration(
-        color: _kNavy,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE6F4FF), Color(0xFFDDF3FF), Color(0xFFF3FAFF)],
         ),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const _PsgDiamondLogo(size: 52),
-            const SizedBox(height: 12),
-            const Text('PSG INSTITUTIONS',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2)),
-            const SizedBox(height: 3),
-            Text('Resident Portal',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
-          ],
-        ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -80,
+            left: -40,
+            child: _hueBlob(const Color(0xFF8ED3FF), 220),
+          ),
+          Positioned(
+            bottom: -90,
+            right: -50,
+            child: _hueBlob(const Color(0xFFBEE9FF), 260),
+          ),
+          Positioned(
+            top: 220,
+            right: 30,
+            child: _hueBlob(const Color(0xFFA6DCFF), 140),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hueBlob(Color color, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.45),
       ),
     );
   }
@@ -621,9 +759,10 @@ class _PsgDiamondLogo extends StatelessWidget {
               borderRadius: BorderRadius.circular(size * 0.16),
               boxShadow: [
                 BoxShadow(
-                    color: _kTeal.withValues(alpha: 0.45),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6)),
+                  color: _kTeal.withValues(alpha: 0.45),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
               ],
             ),
             child: Center(
@@ -632,10 +771,11 @@ class _PsgDiamondLogo extends StatelessWidget {
                 child: Text(
                   'PSG',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontSize: size * 0.28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2),
+                    color: Colors.white,
+                    fontSize: size * 0.28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                  ),
                 ),
               ),
             ),

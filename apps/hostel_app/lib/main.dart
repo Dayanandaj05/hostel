@@ -1,87 +1,82 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:hostel_app/app/app.dart';
 import 'package:hostel_app/core/auth/auth_session_provider.dart';
-import 'package:hostel_app/core/theme/theme.dart';
-import 'package:hostel_app/firebase_options.dart';
 import 'package:hostel_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
-import 'package:hostel_app/features/complaints/data/repositories/firestore_complaint_repository.dart';
+import 'package:hostel_app/features/complaints/data/repositories/mock_complaint_repository.dart';
 import 'package:hostel_app/features/complaints/domain/repositories/complaint_repository.dart';
-import 'package:hostel_app/features/leave/data/repositories/firestore_leave_request_repository.dart';
+import 'package:hostel_app/features/dayentry/data/repositories/mock_day_entry_repository.dart';
+import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_controller.dart';
+import 'package:hostel_app/features/leave/data/repositories/mock_leave_request_repository.dart';
 import 'package:hostel_app/features/leave/domain/repositories/leave_request_repository.dart';
 import 'package:hostel_app/features/leave/presentation/controllers/leave_request_controller.dart';
-import 'package:hostel_app/features/tokens/data/repositories/firestore_food_token_repository.dart';
-import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
-import 'package:hostel_app/features/tshirt/data/repositories/firestore_tshirt_repository.dart';
-import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_controller.dart';
-import 'package:hostel_app/features/dayentry/data/repositories/firestore_day_entry_repository.dart';
-import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_controller.dart';
 import 'package:hostel_app/features/student/data/student_profile_provider.dart';
-import 'package:hostel_app/services/storage/firestore_service.dart';
-
-import 'package:hostel_app/services/notifications/notification_service.dart';
-
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-}
+import 'package:hostel_app/features/tokens/data/repositories/mock_food_token_repository.dart';
+import 'package:hostel_app/features/tokens/domain/repositories/food_token_repository.dart';
+import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
+import 'package:hostel_app/features/tshirt/data/repositories/mock_tshirt_repository.dart';
+import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_controller.dart';
+import 'package:hostel_app/features/notifications/data/notification_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    if (kDebugMode) {
-      debugPrint('Unhandled error: $error');
-      debugPrintStack(stackTrace: stack);
-    }
-    return true;
-  };
-
-  final firebaseReady = await _initializeFirebaseSafely();
-
-  if (firebaseReady) {
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    await NotificationService.initialize();
-  }
-
-  runApp(HostelManagementBootstrap(firebaseReady: firebaseReady));
+  await _initializeFirebase();
+  runApp(const HostelManagementBootstrap());
 }
 
-Future<bool> _initializeFirebaseSafely() async {
+Future<void> _initializeFirebase() async {
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    return true;
-  } catch (e) {
-    debugPrint('Firebase init failed: $e');
-    return false;
+    if (kIsWeb) {
+      const apiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
+      const appId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
+      const messagingSenderId = String.fromEnvironment(
+        'FIREBASE_WEB_MESSAGING_SENDER_ID',
+      );
+      const projectId = String.fromEnvironment('FIREBASE_WEB_PROJECT_ID');
+      const authDomain = String.fromEnvironment('FIREBASE_WEB_AUTH_DOMAIN');
+      const storageBucket = String.fromEnvironment(
+        'FIREBASE_WEB_STORAGE_BUCKET',
+      );
+
+      if (apiKey.isNotEmpty &&
+          appId.isNotEmpty &&
+          messagingSenderId.isNotEmpty &&
+          projectId.isNotEmpty) {
+        await Firebase.initializeApp(
+          options: FirebaseOptions(
+            apiKey: apiKey,
+            appId: appId,
+            messagingSenderId: messagingSenderId,
+            projectId: projectId,
+            authDomain: authDomain.isNotEmpty ? authDomain : null,
+            storageBucket: storageBucket.isNotEmpty ? storageBucket : null,
+          ),
+        );
+        return;
+      }
+
+      debugPrint(
+        'Firebase web options are not configured. Supply dart-define values for web deployment.',
+      );
+      return;
+    }
+
+    await Firebase.initializeApp();
+  } catch (error) {
+    debugPrint('Firebase initialization skipped: $error');
   }
 }
 
 class HostelManagementBootstrap extends StatefulWidget {
-  const HostelManagementBootstrap({
-    required this.firebaseReady,
-    super.key,
-  });
-
-  final bool firebaseReady;
+  const HostelManagementBootstrap({super.key});
 
   @override
-  State<HostelManagementBootstrap> createState() => _HostelManagementBootstrapState();
+  State<HostelManagementBootstrap> createState() =>
+      _HostelManagementBootstrapState();
 }
 
 class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
@@ -95,76 +90,45 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
 
   @override
   Widget build(BuildContext context) {
+    final authService = AuthService();
+    final leaveRepository = MockLeaveRequestRepository();
+    final foodTokenRepository = MockFoodTokenRepository();
+    final tshirtRepository = MockTShirtRepository();
+    final dayEntryRepository = MockDayEntryRepository();
+    final complaintRepository = MockComplaintRepository();
+
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthSessionProvider>.value(value: _authSessionProvider),
+        ChangeNotifierProvider<AuthSessionProvider>.value(
+          value: _authSessionProvider,
+        ),
+        Provider<AuthService>.value(value: authService),
+        Provider<LeaveRequestRepository>.value(value: leaveRepository),
+        Provider<FoodTokenRepository>.value(value: foodTokenRepository),
+        Provider<ComplaintRepository>.value(value: complaintRepository),
+        ChangeNotifierProvider<StudentProfileProvider>(
+          create: (_) => StudentProfileProvider(),
+        ),
+        ChangeNotifierProvider<LeaveRequestController>(
+          create: (_) => LeaveRequestController(leaveRepository),
+        ),
+        ChangeNotifierProvider<AuthProviderController>(
+          create: (_) => AuthProviderController(authService)..initialize(),
+        ),
+        ChangeNotifierProvider<FoodTokenController>(
+          create: (_) => FoodTokenController(foodTokenRepository),
+        ),
+        ChangeNotifierProvider<TShirtController>(
+          create: (_) => TShirtController(tshirtRepository),
+        ),
+        ChangeNotifierProvider<DayEntryController>(
+          create: (_) => DayEntryController(dayEntryRepository),
+        ),
+        ChangeNotifierProvider<NotificationProvider>(
+          create: (_) => NotificationProvider(),
+        ),
       ],
-      builder: (context, _) {
-        if (!widget.firebaseReady) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Hostel Management System',
-            theme: AppTheme.light,
-            home: const Scaffold(
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.wifi_off, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      'Firebase unavailable.\nCheck your connection.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-
-        final firestore = FirebaseFirestore.instance;
-        final authService = AuthService(
-          firebaseAuth: FirebaseAuth.instance,
-          firestore: firestore,
-        );
-        final firestoreService = FirestoreService(firestore);
-        final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
-        final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
-        final tshirtRepository = FirestoreTShirtRepository(firestoreService);
-        final dayEntryRepository = FirestoreDayEntryRepository(firestoreService);
-
-        return MultiProvider(
-          providers: [
-            Provider<AuthService>.value(value: authService),
-            Provider<FirestoreService>.value(value: firestoreService),
-            Provider<LeaveRequestRepository>.value(value: leaveRepository),
-            Provider<ComplaintRepository>(
-              create: (_) => FirestoreComplaintRepository(firestoreService),
-            ),
-            ChangeNotifierProvider<StudentProfileProvider>(
-              create: (_) => StudentProfileProvider(firestore),
-            ),
-            ChangeNotifierProvider<LeaveRequestController>(
-              create: (_) => LeaveRequestController(leaveRepository),
-            ),
-            ChangeNotifierProvider<AuthProviderController>(
-              create: (_) => AuthProviderController(authService)..initialize(),
-            ),
-            ChangeNotifierProvider<FoodTokenController>(
-              create: (_) => FoodTokenController(foodTokenRepository),
-            ),
-            ChangeNotifierProvider<TShirtController>(
-              create: (_) => TShirtController(tshirtRepository),
-            ),
-            ChangeNotifierProvider<DayEntryController>(
-              create: (_) => DayEntryController(dayEntryRepository),
-            ),
-          ],
-          child: const HostelManagementApp(),
-        );
-      },
+      child: const HostelManagementApp(),
     );
   }
 }

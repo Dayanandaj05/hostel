@@ -6,8 +6,29 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function currentUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasCurrentUserDoc() {
+      return isSignedIn() && exists(currentUserPath());
+    }
+
+    function claimRole() {
+      return isSignedIn() && request.auth.token.role is string &&
+        isValidRole(request.auth.token.role)
+        ? request.auth.token.role
+        : null;
+    }
+
     function userRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return claimRole() != null
+        ? claimRole()
+        : (hasCurrentUserDoc() ? get(currentUserPath()).data.role : null);
+    }
+
+    function isValidRole(role) {
+      return role == 'student' || role == 'warden' || role == 'admin';
     }
 
     function isStudent() { return isSignedIn() && userRole() == 'student'; }
@@ -15,63 +36,333 @@ service cloud.firestore {
     function isAdmin()   { return isSignedIn() && userRole() == 'admin';   }
     function isStaff()   { return isWarden() || isAdmin(); }
 
+    function validUsersCreate(data, userId) {
+      return data.keys().hasAll(['name', 'email', 'role']) &&
+        data.keys().hasOnly([
+          'name', 'email', 'role', 'uid', 'roomId', 'roomNumber', 'rollNumber',
+          'programme', 'yearOfStudy', 'hostelName', 'blockName', 'roomType', 'floor',
+          'joiningDate', 'messName', 'messType', 'messSupervisors', 'establishmentFee',
+          'depositFee', 'feesPaid', 'feesBalance', 'balance', 'contactPhone', 'fatherName',
+          'address', 'primaryMobile', 'secondaryMobile', 'bloodGroup', 'fcmToken',
+          'lastTokenUpdate', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string &&
+        data.email is string &&
+        isValidRole(data.role) &&
+        (!data.keys().hasAny(['uid']) || data.uid == userId) &&
+        (!data.keys().hasAny(['roomId']) || data.roomId == null || data.roomId is string) &&
+        (!data.keys().hasAny(['roomNumber']) || data.roomNumber == null || data.roomNumber is string) &&
+        (!data.keys().hasAny(['rollNumber']) || data.rollNumber == null || data.rollNumber is string) &&
+        (!data.keys().hasAny(['programme']) || data.programme == null || data.programme is string) &&
+        (!data.keys().hasAny(['yearOfStudy']) || data.yearOfStudy == null || data.yearOfStudy is string) &&
+        (!data.keys().hasAny(['hostelName']) || data.hostelName == null || data.hostelName is string) &&
+        (!data.keys().hasAny(['blockName']) || data.blockName == null || data.blockName is string) &&
+        (!data.keys().hasAny(['roomType']) || data.roomType == null || data.roomType is string) &&
+        (!data.keys().hasAny(['floor']) || data.floor == null || data.floor is string) &&
+        (!data.keys().hasAny(['joiningDate']) || data.joiningDate == null || data.joiningDate is string) &&
+        (!data.keys().hasAny(['messName']) || data.messName == null || data.messName is string) &&
+        (!data.keys().hasAny(['messType']) || data.messType == null || data.messType is string) &&
+        (!data.keys().hasAny(['messSupervisors']) || data.messSupervisors == null || data.messSupervisors is list) &&
+        (!data.keys().hasAny(['establishmentFee']) || data.establishmentFee == null || data.establishmentFee is number) &&
+        (!data.keys().hasAny(['depositFee']) || data.depositFee == null || data.depositFee is number) &&
+        (!data.keys().hasAny(['feesPaid']) || data.feesPaid == null || data.feesPaid is number) &&
+        (!data.keys().hasAny(['feesBalance']) || data.feesBalance == null || data.feesBalance is number) &&
+        (!data.keys().hasAny(['balance']) || data.balance == null || data.balance is number) &&
+        (!data.keys().hasAny(['contactPhone']) || data.contactPhone == null || data.contactPhone is string) &&
+        (!data.keys().hasAny(['fatherName']) || data.fatherName == null || data.fatherName is string) &&
+        (!data.keys().hasAny(['address']) || data.address == null || data.address is string) &&
+        (!data.keys().hasAny(['primaryMobile']) || data.primaryMobile == null || data.primaryMobile is string) &&
+        (!data.keys().hasAny(['secondaryMobile']) || data.secondaryMobile == null || data.secondaryMobile is string) &&
+        (!data.keys().hasAny(['bloodGroup']) || data.bloodGroup == null || data.bloodGroup is string) &&
+        (!data.keys().hasAny(['fcmToken']) || data.fcmToken == null || data.fcmToken is string) &&
+        (!data.keys().hasAny(['lastTokenUpdate']) || data.lastTokenUpdate == null || data.lastTokenUpdate is timestamp);
+    }
+
+    function validUsersUpdate(data, changedKeys, userId) {
+      return changedKeys.hasOnly([
+          'name', 'email', 'role', 'uid', 'roomId', 'roomNumber', 'rollNumber',
+          'programme', 'yearOfStudy', 'hostelName', 'blockName', 'roomType', 'floor',
+          'joiningDate', 'messName', 'messType', 'messSupervisors', 'establishmentFee',
+          'depositFee', 'feesPaid', 'feesBalance', 'balance', 'contactPhone', 'fatherName',
+          'address', 'primaryMobile', 'secondaryMobile', 'bloodGroup', 'fcmToken',
+          'lastTokenUpdate', 'updatedAt'
+        ]) &&
+        (!data.keys().hasAny(['name']) || data.name == null || data.name is string) &&
+        (!data.keys().hasAny(['email']) || data.email == null || data.email is string) &&
+        (!data.keys().hasAny(['role']) || isValidRole(data.role)) &&
+        (!data.keys().hasAny(['uid']) || data.uid == userId) &&
+        (!data.keys().hasAny(['roomId']) || data.roomId == null || data.roomId is string) &&
+        (!data.keys().hasAny(['roomNumber']) || data.roomNumber == null || data.roomNumber is string) &&
+        (!data.keys().hasAny(['rollNumber']) || data.rollNumber == null || data.rollNumber is string) &&
+        (!data.keys().hasAny(['programme']) || data.programme == null || data.programme is string) &&
+        (!data.keys().hasAny(['yearOfStudy']) || data.yearOfStudy == null || data.yearOfStudy is string) &&
+        (!data.keys().hasAny(['hostelName']) || data.hostelName == null || data.hostelName is string) &&
+        (!data.keys().hasAny(['blockName']) || data.blockName == null || data.blockName is string) &&
+        (!data.keys().hasAny(['roomType']) || data.roomType == null || data.roomType is string) &&
+        (!data.keys().hasAny(['floor']) || data.floor == null || data.floor is string) &&
+        (!data.keys().hasAny(['joiningDate']) || data.joiningDate == null || data.joiningDate is string) &&
+        (!data.keys().hasAny(['messName']) || data.messName == null || data.messName is string) &&
+        (!data.keys().hasAny(['messType']) || data.messType == null || data.messType is string) &&
+        (!data.keys().hasAny(['messSupervisors']) || data.messSupervisors == null || data.messSupervisors is list) &&
+        (!data.keys().hasAny(['establishmentFee']) || data.establishmentFee == null || data.establishmentFee is number) &&
+        (!data.keys().hasAny(['depositFee']) || data.depositFee == null || data.depositFee is number) &&
+        (!data.keys().hasAny(['feesPaid']) || data.feesPaid == null || data.feesPaid is number) &&
+        (!data.keys().hasAny(['feesBalance']) || data.feesBalance == null || data.feesBalance is number) &&
+        (!data.keys().hasAny(['balance']) || data.balance == null || data.balance is number) &&
+        (!data.keys().hasAny(['contactPhone']) || data.contactPhone == null || data.contactPhone is string) &&
+        (!data.keys().hasAny(['fatherName']) || data.fatherName == null || data.fatherName is string) &&
+        (!data.keys().hasAny(['address']) || data.address == null || data.address is string) &&
+        (!data.keys().hasAny(['primaryMobile']) || data.primaryMobile == null || data.primaryMobile is string) &&
+        (!data.keys().hasAny(['secondaryMobile']) || data.secondaryMobile == null || data.secondaryMobile is string) &&
+        (!data.keys().hasAny(['bloodGroup']) || data.bloodGroup == null || data.bloodGroup is string) &&
+        (!data.keys().hasAny(['fcmToken']) || data.fcmToken == null || data.fcmToken is string) &&
+        (!data.keys().hasAny(['lastTokenUpdate']) || data.lastTokenUpdate == null || data.lastTokenUpdate is timestamp);
+    }
+
+    function validLeaveCreate(data) {
+      return data.keys().hasAll(['userId', 'reason', 'status', 'createdAt']) &&
+        data.keys().hasOnly([
+          'userId', 'fromDate', 'toDate', 'startDate', 'endDate',
+          'reason', 'description', 'leaveType', 'approvalManager',
+          'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.userId == request.auth.uid &&
+        data.reason is string &&
+        data.status == 'pending' &&
+        (
+          (data.keys().hasAll(['fromDate', 'toDate']) && data.fromDate is timestamp && data.toDate is timestamp) ||
+          (data.keys().hasAll(['startDate', 'endDate']) && data.startDate is timestamp && data.endDate is timestamp)
+        ) &&
+        (!data.keys().hasAny(['description']) || data.description is string) &&
+        (!data.keys().hasAny(['leaveType']) || data.leaveType is string) &&
+        (!data.keys().hasAny(['approvalManager']) || data.approvalManager is string);
+    }
+
+    function validLeaveUpdate(data, changedKeys) {
+      return changedKeys.hasOnly(['status', 'approvalManager', 'updatedAt']) &&
+        (!data.keys().hasAny(['status']) ||
+          data.status == 'pending' || data.status == 'approved' || data.status == 'rejected') &&
+        (!data.keys().hasAny(['approvalManager']) || data.approvalManager is string);
+    }
+
+    function validFoodTokenCreate(data) {
+      return data.keys().hasAll(['userId', 'status', 'createdAt']) &&
+        data.keys().hasOnly([
+          'userId', 'itemName', 'itemPrice', 'quantity', 'totalPrice',
+          'mealSlot', 'scheduledDate', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.userId == request.auth.uid &&
+        data.status == 'active' &&
+        (!data.keys().hasAny(['itemName']) || data.itemName is string) &&
+        (!data.keys().hasAny(['itemPrice']) || data.itemPrice is number) &&
+        (!data.keys().hasAny(['quantity']) || data.quantity is int) &&
+        (!data.keys().hasAny(['totalPrice']) || data.totalPrice is number) &&
+        (!data.keys().hasAny(['mealSlot']) || data.mealSlot is string) &&
+        (!data.keys().hasAny(['scheduledDate']) || data.scheduledDate is timestamp);
+    }
+
+    function validFoodTokenUpdate(data, changedKeys) {
+      return changedKeys.hasOnly(['status', 'updatedAt']) &&
+        (!data.keys().hasAny(['status']) ||
+          data.status == 'active' || data.status == 'used' ||
+          data.status == 'expired' || data.status == 'cancelled');
+    }
+
+    function validTshirtCreate(data) {
+      return data.keys().hasAll([
+          'userId', 'type', 'size', 'quantity', 'pricePerUnit',
+          'totalPrice', 'status', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId', 'type', 'size', 'quantity', 'pricePerUnit',
+          'totalPrice', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.userId == request.auth.uid &&
+        data.type is string &&
+        data.size is string &&
+        data.quantity is int &&
+        data.pricePerUnit is number &&
+        data.totalPrice is number &&
+        (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected' ||
+          data.status == 'paid' || data.status == 'cancelled');
+    }
+
+    function validNoticeCreate(data) {
+      return data.keys().hasAll(['title', 'body', 'createdBy', 'isActive', 'audienceRoles', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['title', 'body', 'createdBy', 'isActive', 'audienceRoles', 'createdAt', 'updatedAt']) &&
+        data.title is string &&
+        data.body is string &&
+        data.createdBy is string &&
+        data.isActive is bool &&
+        data.audienceRoles is list;
+    }
+
+    function validNoticeUpdate(data, changedKeys) {
+      return changedKeys.hasOnly(['title', 'body', 'isActive', 'audienceRoles', 'updatedAt']) &&
+        (!data.keys().hasAny(['title']) || data.title is string) &&
+        (!data.keys().hasAny(['body']) || data.body is string) &&
+        (!data.keys().hasAny(['isActive']) || data.isActive is bool) &&
+        (!data.keys().hasAny(['audienceRoles']) || data.audienceRoles is list);
+    }
+
+    function validSettingsHostelDay(data) {
+      return data.keys().hasAll([
+          'eventName', 'venue', 'notes', 'eventDate',
+          'registrationOpen', 'maxVisitorsPerStudent', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'eventName', 'venue', 'notes', 'eventDate',
+          'registrationOpen', 'maxVisitorsPerStudent', 'updatedAt'
+        ]) &&
+        data.eventName is string &&
+        data.venue is string &&
+        data.notes is string &&
+        data.eventDate is timestamp &&
+        data.registrationOpen is bool &&
+        data.maxVisitorsPerStudent is int;
+    }
+
+    function validDayEntryCreate(data) {
+      return data.keys().hasAll([
+          'userId', 'passNumber', 'studentName', 'rollNumber', 'roomNumber',
+          'programme', 'visitDate', 'timeSlot', 'visitors', 'status', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId', 'passNumber', 'studentName', 'rollNumber', 'roomNumber',
+          'programme', 'visitDate', 'timeSlot', 'visitors', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.userId == request.auth.uid &&
+        data.passNumber is string &&
+        data.studentName is string &&
+        data.rollNumber is string &&
+        data.roomNumber is string &&
+        data.programme is string &&
+        data.visitDate is timestamp &&
+        data.timeSlot is string &&
+        data.visitors is list &&
+        data.status == 'pending';
+    }
+
+    function validComplaintCreate(data) {
+      return data.keys().hasAll(['userId', 'title', 'description', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['userId', 'title', 'description', 'status', 'createdAt', 'updatedAt']) &&
+        data.userId == request.auth.uid &&
+        data.title is string &&
+        data.description is string &&
+        data.status == 'pending';
+    }
+
+    function validComplaintUpdate(data, changedKeys) {
+      return changedKeys.hasOnly(['status', 'wardenRemarks', 'resolvedAt', 'updatedAt']) &&
+        (!data.keys().hasAny(['status']) ||
+          data.status == 'pending' || data.status == 'in_progress' || data.status == 'resolved') &&
+        (!data.keys().hasAny(['wardenRemarks']) || data.wardenRemarks is string);
+    }
+
+    function validMessApplicationCreate(data) {
+      return data.keys().hasAll([
+          'studentId', 'studentName', 'rollNumber', 'currentMess',
+          'requestedMess', 'status', 'remarks', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'studentId', 'studentName', 'rollNumber', 'currentMess',
+          'requestedMess', 'status', 'remarks', 'createdAt', 'updatedAt'
+        ]) &&
+        data.studentId == request.auth.uid &&
+        data.studentName is string &&
+        data.rollNumber is string &&
+        data.currentMess is string &&
+        data.requestedMess is string &&
+        data.status == 'pending' &&
+        data.remarks is string;
+    }
+
+    function validMessApplicationUpdate(data, changedKeys) {
+      return changedKeys.hasOnly(['status', 'updatedAt']) &&
+        (!data.keys().hasAny(['status']) ||
+          data.status == 'pending' || data.status == 'approved' || data.status == 'rejected');
+    }
+
     // Users
     match /users/{userId} {
       allow read:  if isSignedIn() && (request.auth.uid == userId || isStaff());
-      allow write: if isAdmin();
+      allow create: if isAdmin() && validUsersCreate(request.resource.data, userId);
+      allow update: if isAdmin() && validUsersUpdate(
+        request.resource.data,
+        request.resource.data.diff(resource.data).affectedKeys(),
+        userId
+      );
+      allow delete: if isAdmin();
     }
 
     // Leave Requests
     match /leave_requests/{id} {
       allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
-      allow update: if isStaff();
+      allow create: if isStudent() && validLeaveCreate(request.resource.data);
+      allow update: if isStaff() && validLeaveUpdate(
+        request.resource.data,
+        request.resource.data.diff(resource.data).affectedKeys()
+      );
       allow delete: if isStudent() && resource.data.userId == request.auth.uid;
     }
 
     // Food Tokens
     match /food_tokens/{id} {
       allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
-      allow update: if isStaff();
+      allow create: if isStudent() && validFoodTokenCreate(request.resource.data);
+      allow update: if isStaff() && validFoodTokenUpdate(
+        request.resource.data,
+        request.resource.data.diff(resource.data).affectedKeys()
+      );
     }
 
     // T-Shirt Orders
     match /tshirt_orders/{id} {
       allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
+      allow create: if isStudent() && validTshirtCreate(request.resource.data);
     }
 
     // Notices
     match /notices/{id} {
       allow read:  if isSignedIn();
-      allow write: if isStaff();
+      allow create: if isStaff() && validNoticeCreate(request.resource.data);
+      allow update: if isStaff() && validNoticeUpdate(
+        request.resource.data,
+        request.resource.data.diff(resource.data).affectedKeys()
+      );
+      allow delete: if isStaff();
     }
 
     // Settings (Hostel Day config etc.)
     match /settings/{id} {
       allow read:  if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() && id == 'hostel_day' && validSettingsHostelDay(request.resource.data);
     }
 
     // Hostel Day Registrations
     match /day_entry_registrations/{id} {
       allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
+      allow create: if isStudent() && validDayEntryCreate(request.resource.data);
     }
 
     // Complaints
     match /complaints/{id} {
       allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow create: if isStudent() && request.resource.data.userId == request.auth.uid;
-      allow update: if isStaff();
+      allow create: if isStudent() && validComplaintCreate(request.resource.data);
+      allow update: if isStaff() && validComplaintUpdate(
+        request.resource.data,
+        request.resource.data.diff(resource.data).affectedKeys()
+      );
     }
 
     // Mess Applications
     match /mess_applications/{id} {
       allow read:   if isSignedIn() && (resource.data.studentId == request.auth.uid || isStaff());
-      allow create: if isStudent() && request.resource.data.studentId == request.auth.uid;
-      allow update: if isStaff();
+      allow create: if isStudent() && validMessApplicationCreate(request.resource.data);
+      allow update: if isStaff() && validMessApplicationUpdate(
+        request.resource.data,
+        request.resource.data.diff(resource.data).affectedKeys()
+      );
     }
   }
 }

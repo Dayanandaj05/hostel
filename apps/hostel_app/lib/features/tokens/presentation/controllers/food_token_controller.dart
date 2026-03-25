@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/food_token_model.dart';
-import '../../data/repositories/firestore_food_token_repository.dart';
+import '../../domain/repositories/food_token_repository.dart';
 
 class FoodTokenController extends ChangeNotifier {
   FoodTokenController(this._repository);
-  final FirestoreFoodTokenRepository _repository;
+  final FoodTokenRepository _repository;
 
   bool _isSubmitting = false;
   bool _isLoading = false;
@@ -24,13 +24,13 @@ class FoodTokenController extends ChangeNotifier {
   void startWatchingTokens(String userId) {
     if (_currentUserId == userId && _subscription != null) return;
     _currentUserId = userId;
-    
+
     _subscription?.cancel();
     if (!_isLoading) {
       _isLoading = true;
       notifyListeners();
     }
-    
+
     _subscription = _repository.watchMyTokens(userId).listen(
       (tokens) {
         _myTokens = tokens;

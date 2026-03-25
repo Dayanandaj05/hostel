@@ -68,16 +68,18 @@ class AuthProviderController extends ChangeNotifier {
 
       // Fetch the full user model before notifying — ensures router sees a
       // complete state (isAuthenticated && role != null) in one go.
-      if (credential.user != null) {
+      if (credential.uid.isNotEmpty) {
         _user = await _authService.getCurrentUserModel();
         if (_user != null) {
+          // Mock mode: notifications are best-effort and should not block login.
           await NotificationService.updateToken(_user!.uid);
           await NotificationService.subscribeToRole(_user!.role.name);
         } else {
-          _errorMessage = 'Profile creation confirmed, but failed to fetch data. Try logging in.';
+          _errorMessage =
+              'Profile creation confirmed, but failed to fetch data. Try logging in.';
         }
       }
-      return credential.user != null && _user != null;
+      return credential.uid.isNotEmpty && _user != null;
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
       return false;
@@ -106,16 +108,17 @@ class AuthProviderController extends ChangeNotifier {
 
       // Fetch the full user model before notifying — ensures router sees a
       // complete state (isAuthenticated && role != null) in one go.
-      if (credential.user != null) {
+      if (credential.uid.isNotEmpty) {
         _user = await _authService.getCurrentUserModel();
         if (_user != null) {
+          // Mock mode: notifications are best-effort and should not block login.
           await NotificationService.updateToken(_user!.uid);
           await NotificationService.subscribeToRole(_user!.role.name);
         } else {
           _errorMessage = 'User profile not found in database.';
         }
       }
-      return credential.user != null && _user != null;
+      return credential.uid.isNotEmpty && _user != null;
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
       return false;

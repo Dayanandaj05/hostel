@@ -36,6 +36,9 @@ import '../features/dashboard/presentation/pages/warden/warden_notice_screen.dar
 import '../features/tokens/presentation/pages/student/my_tokens_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_fees_screen.dart';
 import '../features/tshirt/presentation/pages/student/tshirt_list_screen.dart';
+import '../core/layouts/student_shell_layout.dart';
+import '../core/layouts/warden_shell_layout.dart';
+import '../core/layouts/admin_shell_layout.dart';
 
 abstract class AppRouter {
   static GoRouter build(AuthProviderController authProvider) {
@@ -78,144 +81,202 @@ abstract class AppRouter {
       routes: [
         GoRoute(
           path: AppRoutes.splash,
-          pageBuilder: (context, state) => _buildPage(const SplashScreen(), state),
+          pageBuilder: (context, state) =>
+              _buildPage(const SplashScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.login,
-          pageBuilder: (context, state) => _buildPage(const LoginScreen(), state),
+          pageBuilder: (context, state) =>
+              _buildPage(const LoginScreen(), state),
         ),
         GoRoute(
           path: AppRoutes.unauthorized,
-          pageBuilder: (context, state) => _buildPage(const _UnauthorizedPage(), state),
+          pageBuilder: (context, state) =>
+              _buildPage(const _UnauthorizedPage(), state),
         ),
-        
+
         // --- Student Routes ---
-        GoRoute(
-          path: AppRoutes.studentHome,
-          pageBuilder: (context, state) => _buildPage(const StudentDashboardScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentRoom,
-          pageBuilder: (context, state) => _buildPage(const StudentRoomScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentLeave,
-          pageBuilder: (context, state) => _buildPage(const LeaveRequestScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentComplaints,
-          pageBuilder: (context, state) => _buildPage(
-            ChangeNotifierProvider<ComplaintController>(
-              create: (_) => ComplaintController(context.read<ComplaintRepository>()),
-              child: const ComplaintSubmissionScreen(),
-            ), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentNotices,
-          pageBuilder: (context, state) => _buildPage(const StudentNoticesScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentTokens,
-          pageBuilder: (context, state) => _buildPage(const BookTokenScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentTShirt,
-          pageBuilder: (context, state) => _buildPage(const TShirtScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentMyTokens,
-          pageBuilder: (context, state) => _buildPage(const MyTokensScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentMyTShirts,
-          pageBuilder: (context, state) => _buildPage(const TShirtListScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentDayEntry,
-          pageBuilder: (context, state) => _buildPage(const DayEntryScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentProfile,
-          pageBuilder: (context, state) => _buildPage(const StudentProfileScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentMess,
-          pageBuilder: (context, state) => _buildPage(const _PlaceholderPage(
-            title: 'Mess Details',
-            description: 'View mess information and billing.',
-          ), state),
-        ),
-        GoRoute(
-          path: '/student/mess-application',
-          pageBuilder: (context, state) => _buildPage(const MessApplicationScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentFees,
-          pageBuilder: (context, state) => _buildPage(const StudentFeesScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.studentContact,
-          pageBuilder: (context, state) => _buildPage(const StudentContactScreen(), state),
+        ShellRoute(
+          builder: (context, state, child) {
+            return StudentShellLayout(child: child);
+          },
+          routes: [
+            GoRoute(
+              path: AppRoutes.studentHome,
+              pageBuilder: (context, state) =>
+                  _buildPage(const StudentDashboardScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentRoom,
+              pageBuilder: (context, state) =>
+                  _buildPage(const StudentRoomScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentLeave,
+              pageBuilder: (context, state) =>
+                  _buildPage(const LeaveRequestScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentComplaints,
+              pageBuilder: (context, state) => _buildPage(
+                ChangeNotifierProvider<ComplaintController>(
+                  create: (_) =>
+                      ComplaintController(context.read<ComplaintRepository>()),
+                  child: const ComplaintSubmissionScreen(),
+                ),
+                state,
+              ),
+            ),
+            GoRoute(
+              path: AppRoutes.studentNotices,
+              pageBuilder: (context, state) =>
+                  _buildPage(const StudentNoticesScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentTokens,
+              pageBuilder: (context, state) =>
+                  _buildPage(const BookTokenScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentTShirt,
+              pageBuilder: (context, state) =>
+                  _buildPage(const TShirtScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentMyTokens,
+              pageBuilder: (context, state) =>
+                  _buildPage(const MyTokensScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentMyTShirts,
+              pageBuilder: (context, state) =>
+                  _buildPage(const TShirtListScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentDayEntry,
+              pageBuilder: (context, state) =>
+                  _buildPage(const DayEntryScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentProfile,
+              pageBuilder: (context, state) =>
+                  _buildPage(const StudentProfileScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentMess,
+              pageBuilder: (context, state) => _buildPage(
+                const _PlaceholderPage(
+                  title: 'Mess Details',
+                  description: 'View mess information and billing.',
+                ),
+                state,
+              ),
+            ),
+            GoRoute(
+              path: '/student/mess-application',
+              pageBuilder: (context, state) =>
+                  _buildPage(const MessApplicationScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentFees,
+              pageBuilder: (context, state) =>
+                  _buildPage(const StudentFeesScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.studentContact,
+              pageBuilder: (context, state) =>
+                  _buildPage(const StudentContactScreen(), state),
+            ),
+          ],
         ),
 
         // --- Warden Routes ---
-        GoRoute(
-          path: AppRoutes.wardenHome,
-          pageBuilder: (context, state) => _buildPage(const WardenDashboardScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.wardenLeaveRequests,
-          pageBuilder: (context, state) => _buildPage(const WardenLeaveRequestsScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.wardenMessApplications,
-          pageBuilder: (context, state) => _buildPage(const WardenMessApplicationsScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.wardenComplaints,
-          pageBuilder: (context, state) => _buildPage(
-            ChangeNotifierProvider<ComplaintController>(
-              create: (_) => ComplaintController(context.read<ComplaintRepository>()),
-              child: const WardenComplaintsScreen(),
-            ), state),
-        ),
-        GoRoute(
-          path: AppRoutes.wardenNotices,
-          pageBuilder: (context, state) => _buildPage(const WardenNoticeScreen(), state),
+        ShellRoute(
+          builder: (context, state, child) {
+            return WardenShellLayout(child: child);
+          },
+          routes: [
+            GoRoute(
+              path: AppRoutes.wardenHome,
+              pageBuilder: (context, state) =>
+                  _buildPage(const WardenDashboardScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.wardenLeaveRequests,
+              pageBuilder: (context, state) =>
+                  _buildPage(const WardenLeaveRequestsScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.wardenMessApplications,
+              pageBuilder: (context, state) =>
+                  _buildPage(const WardenMessApplicationsScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.wardenComplaints,
+              pageBuilder: (context, state) => _buildPage(
+                ChangeNotifierProvider<ComplaintController>(
+                  create: (_) =>
+                      ComplaintController(context.read<ComplaintRepository>()),
+                  child: const WardenComplaintsScreen(),
+                ),
+                state,
+              ),
+            ),
+            GoRoute(
+              path: AppRoutes.wardenNotices,
+              pageBuilder: (context, state) =>
+                  _buildPage(const WardenNoticeScreen(), state),
+            ),
+          ],
         ),
 
         // --- Admin Routes ---
-        GoRoute(
-          path: AppRoutes.adminHome,
-          pageBuilder: (context, state) => _buildPage(const AdminDashboardScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.adminUsers,
-          pageBuilder: (context, state) => _buildPage(const AdminUserManagementScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.adminRoles,
-          pageBuilder: (context, state) => _buildPage(const AdminRoleAssignmentScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.adminRooms,
-          pageBuilder: (context, state) => _buildPage(const AdminRoomAllocationScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.adminMessMenu,
-          pageBuilder: (context, state) => _buildPage(const AdminMessMenuScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.adminNotices,
-          pageBuilder: (context, state) => _buildPage(const AdminNoticePostScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.adminDashboard,
-          pageBuilder: (context, state) => _buildPage(const AdminStatisticsScreen(), state),
-        ),
-        GoRoute(
-          path: AppRoutes.adminHostelDay,
-          pageBuilder: (context, state) => _buildPage(const AdminHostelDayScreen(), state),
+        ShellRoute(
+          builder: (context, state, child) {
+            return AdminShellLayout(child: child);
+          },
+          routes: [
+            GoRoute(
+              path: AppRoutes.adminHome,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminDashboardScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminUsers,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminUserManagementScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminRoles,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminRoleAssignmentScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminRooms,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminRoomAllocationScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminMessMenu,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminMessMenuScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminNotices,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminNoticePostScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminDashboard,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminStatisticsScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminHostelDay,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminHostelDayScreen(), state),
+            ),
+          ],
         ),
       ],
     );
@@ -225,22 +286,28 @@ abstract class AppRouter {
     return CustomTransitionPage(
       key: state.pageKey,
       child: child,
+      transitionDuration: const Duration(milliseconds: 340),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.01, 0),
+        final fade = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        final slide =
+            Tween<Offset>(
+              begin: const Offset(0.015, 0),
               end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutQuart),
+            );
+        return FadeTransition(
+          opacity: fade,
+          child: SlideTransition(position: slide, child: child),
         );
       },
     );
   }
 }
-
 
 class _UnauthorizedPage extends StatelessWidget {
   const _UnauthorizedPage();
@@ -314,7 +381,11 @@ class _PlaceholderPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.construction_rounded, size: 64, color: Colors.grey.shade300),
+              Icon(
+                Icons.construction_rounded,
+                size: 64,
+                color: Colors.grey.shade300,
+              ),
               const SizedBox(height: 16),
               Text(
                 description,

@@ -1,0 +1,56 @@
+name: Flutter CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/hostel_app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Inject firebase_options.dart
+        run: |
+          if [ -z "${{ secrets.FIREBASE_OPTIONS_DART }}" ]; then
+            echo "Missing secret: FIREBASE_OPTIONS_DART"
+            exit 1
+          fi
+          cat > lib/firebase_options.dart <<'EOF'
+          ${{ secrets.FIREBASE_OPTIONS_DART }}
+          EOF
+
+      - name: Inject Android google-services.json (optional)
+        if: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > android/app/google-services.json
+
+      - name: Inject iOS GoogleService-Info.plist (optional)
+        if: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_B64 != '' }}
+        run: |
+          echo "${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_B64 }}" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
+      - name: Inject macOS GoogleService-Info.plist (optional)
+        if: ${{ secrets.MACOS_GOOGLE_SERVICE_INFO_PLIST_B64 != '' }}
+        run: |
+          echo "${{ secrets.MACOS_GOOGLE_SERVICE_INFO_PLIST_B64 }}" | base64 --decode > macos/Runner/GoogleService-Info.plist
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze project
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test

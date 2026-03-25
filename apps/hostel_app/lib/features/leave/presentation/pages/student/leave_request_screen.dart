@@ -1,10 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Leave Request Screen  —  Glassmorphism UI
 // ─────────────────────────────────────────────────────────────────────────────
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:hostel_app/features/leave/domain/entities/leave_request_model.dart';
+import 'package:hostel_app/services/mock/mock_service.dart';
 
 import '../../../../../app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
@@ -30,25 +31,44 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
   String _reason = 'Home Visit';
   final _descController = TextEditingController();
   bool _submitting = false;
+  Future<List<LeaveRequestModel>>? _historyFuture;
 
   final _reasons = [
-    'Home Visit', 'Medical Emergency', 'Academic Event', 'Others'
+    'Home Visit',
+    'Medical Emergency',
+    'Academic Event',
+    'Others',
   ];
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(
-        () => setState(() => _scrollOffset = _scrollController.offset));
+      () => setState(() => _scrollOffset = _scrollController.offset),
+    );
     _entryController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _fadeAnim =
-        CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim =
-        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
-            CurvedAnimation(
-                parent: _entryController, curve: Curves.easeOutCubic));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _entryController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final uid = AuthProviderController.of(context).user?.uid;
+      if (uid != null) {
+        setState(() {
+          _historyFuture = MockService.watchMyLeaveRequests(uid).first;
+        });
+      }
+    });
   }
 
   @override
@@ -74,19 +94,21 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
 
     setState(() => _submitting = true);
     try {
-      await FirebaseFirestore.instance.collection('leave_requests').add({
-        'userId': uid,
-        'fromDate': Timestamp.fromDate(_fromDate!),
-        'toDate': Timestamp.fromDate(_toDate!),
-        'reason': _reason,
-        'description': _descController.text.trim(),
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await MockService.submitLeaveRequest(
+        LeaveRequestModel(
+          userId: uid,
+          startDate: _fromDate!,
+          endDate: _toDate!,
+          reason: _reason,
+          leaveType: _descController.text.trim(),
+          status: LeaveRequestStatus.pending,
+        ),
+      );
       if (mounted) {
         _fromDate = null;
         _toDate = null;
         _descController.clear();
+        _historyFuture = MockService.watchMyLeaveRequests(uid).first;
         setState(() {});
         _snack('Leave application submitted!', isSuccess: true);
       }
@@ -98,9 +120,12 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
   }
 
   void _snack(String msg, {bool isSuccess = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text(msg),
-        backgroundColor: isSuccess ? PsgColors.green : PsgColors.error));
+        backgroundColor: isSuccess ? PsgColors.green : PsgColors.error,
+      ),
+    );
   }
 
   Future<void> _pickDate(bool isFrom) async {
@@ -136,9 +161,14 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
         appBar: PsgGlassAppBar(
           scrollOffset: _scrollOffset,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_rounded,
-                color: PsgColors.primary, size: 20),
-            onPressed: () => context.go(AppRoutes.studentHome),
+            icon: const Icon(
+              Icons.arrow_back_ios_rounded,
+              color: PsgColors.primary,
+              size: 20,
+            ),
+            onPressed: () => context.canPop()
+                ? context.pop()
+                : context.go(AppRoutes.studentHome),
           ),
         ),
         body: FadeTransition(
@@ -149,77 +179,87 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
               controller: _scrollController,
               padding: EdgeInsets.only(
                 top: MediaQuery.of(context).padding.top + 88,
-                bottom: 60, left: 24, right: 24,
+                bottom: 40,
+                left: 24,
+                right: 24,
               ),
               children: [
                 // ── Page header
                 StaggeredEntry(
                   index: 0,
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text('Leave Application',
-                        style: PsgText.headline(30,
-                            color: PsgColors.primary)),
-                    const SizedBox(height: 4),
-                    Text(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Leave Application',
+                        style: PsgText.headline(30, color: PsgColors.primary),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
                         'Request formal permission for hostel absence.',
-                        style: PsgText.body(14,
-                            color: PsgColors.onSurfaceVariant,
-                            weight: FontWeight.w500)),
-                  ]),
+                        style: PsgText.body(
+                          14,
+                          color: PsgColors.onSurfaceVariant,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
 
                 // ── Form card
-                StaggeredEntry(
-                  index: 1,
-                  child: GlassCard(child: _buildForm()),
-                ),
+                StaggeredEntry(index: 1, child: GlassCard(child: _buildForm())),
                 const SizedBox(height: 28),
 
                 // ── History
                 StaggeredEntry(
                   index: 2,
                   child: PsgSectionHeader(
-                      title: 'My Leave History',
-                      action: 'View All'),
+                    title: 'My Leave History',
+                    action: 'View All',
+                  ),
                 ),
                 const SizedBox(height: 14),
 
                 if (uid.isNotEmpty)
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('leave_requests')
-                        .where('userId', isEqualTo: uid)
-                        .orderBy('createdAt', descending: true)
-                        .limit(10)
-                        .snapshots(),
+                  FutureBuilder<List<LeaveRequestModel>>(
+                    future: _historyFuture,
                     builder: (ctx, snap) {
-                      if (!snap.hasData) {
-                        return const Center(
-                            child: CircularProgressIndicator());
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
                       }
-                      final docs = snap.data!.docs;
+                      if (snap.hasError) {
+                        return Center(
+                          child: Text(
+                            'Failed to load leave history.',
+                            style: PsgText.body(14, color: PsgColors.error),
+                          ),
+                        );
+                      }
+                      final docs = snap.data ?? const <LeaveRequestModel>[];
                       if (docs.isEmpty) {
                         return Center(
-                            child: Text('No leave history yet.',
-                                style: PsgText.body(14,
-                                    color: PsgColors.onSurfaceVariant)));
+                          child: Text(
+                            'No leave history yet.',
+                            style: PsgText.body(
+                              14,
+                              color: PsgColors.onSurfaceVariant,
+                            ),
+                          ),
+                        );
                       }
                       return ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: docs.length,
                         itemBuilder: (ctx, i) {
-                          final data = docs[i].data() as Map<String, dynamic>;
-                          final reason = data['reason'] as String? ?? '';
-                          final status = data['status'] as String? ?? 'pending';
-                          final fromTs = data['fromDate'] as Timestamp?;
-                          final toTs = data['toDate'] as Timestamp?;
-                          final from = fromTs?.toDate();
-                          final to = toTs?.toDate();
-                          
+                          final item = docs[i];
+                          final reason = item.reason;
+                          final status = item.status.value;
+                          final from = item.startDate;
+                          final to = item.endDate;
+
                           return StaggeredEntry(
                             index: i,
                             child: Padding(
@@ -227,26 +267,36 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
                               child: GlassCard(
                                 borderRadius: 16,
                                 padding: const EdgeInsets.all(16),
-                                child: Row(children: [
-                                  _statusIcon(status),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(reason, style: PsgText.label(14, color: PsgColors.primary)),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          from != null && to != null
-                                            ? '${DateFormat('dd MMM').format(from)} - ${DateFormat('dd MMM').format(to)}'
-                                            : '–',
-                                          style: PsgText.body(12, color: PsgColors.onSurfaceVariant),
-                                        ),
-                                      ],
+                                child: Row(
+                                  children: [
+                                    _statusIcon(status),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            reason,
+                                            style: PsgText.label(
+                                              14,
+                                              color: PsgColors.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${DateFormat('dd MMM').format(from)} - ${DateFormat('dd MMM').format(to)}',
+                                            style: PsgText.body(
+                                              12,
+                                              color: PsgColors.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  _statusChip(status),
-                                ]),
+                                    _statusChip(status),
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -279,9 +329,10 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
         color = PsgColors.primary;
     }
     return Container(
-      width: 44, height: 44,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(icon, color: color, size: 22),
@@ -291,14 +342,19 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
   Widget _statusChip(String status) {
     Color color;
     switch (status.toLowerCase()) {
-      case 'approved': color = PsgColors.green; break;
-      case 'rejected': color = PsgColors.error; break;
-      default: color = PsgColors.primary;
+      case 'approved':
+        color = PsgColors.green;
+        break;
+      case 'rejected':
+        color = PsgColors.error;
+        break;
+      default:
+        color = PsgColors.primary;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -310,113 +366,139 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
 
   // ── Form ─────────────────────────────────────────────────────────────────
   Widget _buildForm() {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Date pickers
-      Row(children: [
-        Expanded(child: _datePicker('Date From', _fromDate, () => _pickDate(true))),
-        const SizedBox(width: 12),
-        Expanded(child: _datePicker('Date To', _toDate, () => _pickDate(false))),
-      ]),
-      const SizedBox(height: 18),
-
-      // Reason dropdown
-      Text('REASON FOR LEAVE',
-          style: PsgText.label(9,
-              letterSpacing: 1.4, color: PsgColors.primary)),
-      const SizedBox(height: 8),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.40),
-          borderRadius: BorderRadius.circular(14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Date pickers
+        Row(
+          children: [
+            Expanded(
+              child: _datePicker('Date From', _fromDate, () => _pickDate(true)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _datePicker('Date To', _toDate, () => _pickDate(false)),
+            ),
+          ],
         ),
-        child: DropdownButton<String>(
-          value: _reason,
-          isExpanded: true,
-          underline: const SizedBox(),
-          icon: const Icon(Icons.expand_more_rounded,
-              color: PsgColors.outline),
-          style: PsgText.body(14,
-              color: PsgColors.onSurface, weight: FontWeight.w500),
-          items: _reasons
-              .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-              .toList(),
-          onChanged: (v) => setState(() => _reason = v ?? _reason),
-        ),
-      ),
-      const SizedBox(height: 18),
+        const SizedBox(height: 18),
 
-      // Description
-      Text('BRIEFLY EXPLAIN…',
-          style: PsgText.label(9,
-              letterSpacing: 1.4, color: PsgColors.primary)),
-      const SizedBox(height: 8),
-      TextFormField(
-        controller: _descController,
-        maxLines: 3,
-        style: PsgText.body(14,
-            color: PsgColors.onSurface, weight: FontWeight.w500),
-        decoration: InputDecoration(
-          hintText: 'Provide additional details for your request',
-          hintStyle: PsgText.body(13, color: PsgColors.outline),
-          border: OutlineInputBorder(
+        // Reason dropdown
+        Text(
+          'REASON FOR LEAVE',
+          style: PsgText.label(9, letterSpacing: 1.4, color: PsgColors.primary),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.40),
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
           ),
-          fillColor: Colors.white.withOpacity(0.40),
-          filled: true,
+          child: DropdownButton<String>(
+            value: _reason,
+            isExpanded: true,
+            underline: const SizedBox(),
+            icon: const Icon(
+              Icons.expand_more_rounded,
+              color: PsgColors.outline,
+            ),
+            style: PsgText.body(
+              14,
+              color: PsgColors.onSurface,
+              weight: FontWeight.w500,
+            ),
+            items: _reasons
+                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                .toList(),
+            onChanged: (v) => setState(() => _reason = v ?? _reason),
+          ),
         ),
-      ),
-      const SizedBox(height: 22),
+        const SizedBox(height: 18),
 
-      PsgFilledButton(
-        label: 'Submit Leave Application',
-        icon: Icons.send_rounded,
-        loading: _submitting,
-        onPressed: _submit,
-      ),
-    ]);
+        // Description
+        Text(
+          'BRIEFLY EXPLAIN…',
+          style: PsgText.label(9, letterSpacing: 1.4, color: PsgColors.primary),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _descController,
+          maxLines: 3,
+          style: PsgText.body(
+            14,
+            color: PsgColors.onSurface,
+            weight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Provide additional details for your request',
+            hintStyle: PsgText.body(13, color: PsgColors.outline),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+            fillColor: Colors.white.withValues(alpha: 0.40),
+            filled: true,
+          ),
+        ),
+        const SizedBox(height: 22),
+
+        PsgFilledButton(
+          label: 'Submit Leave Application',
+          icon: Icons.send_rounded,
+          loading: _submitting,
+          onPressed: _submit,
+        ),
+      ],
+    );
   }
 
   Widget _datePicker(String label, DateTime? value, VoidCallback onTap) {
     final fmt = value != null ? DateFormat('dd MMM yy').format(value) : null;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label.toUpperCase(),
-          style: PsgText.label(9,
-              letterSpacing: 1.4, color: PsgColors.primary)),
-      const SizedBox(height: 8),
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.40),
-            borderRadius: BorderRadius.circular(14),
-            border: value != null
-                ? Border.all(
-                    color: PsgColors.primaryContainer, width: 1.5)
-                : null,
-          ),
-          child: Row(children: [
-            Icon(Icons.calendar_month_rounded,
-                size: 16,
-                color: value != null
-                    ? PsgColors.primaryContainer
-                    : PsgColors.outline),
-            const SizedBox(width: 8),
-            Text(
-              fmt ?? 'Select date',
-              style: PsgText.body(13,
-                  color: value != null
-                      ? PsgColors.onSurface
-                      : PsgColors.outline,
-                  weight: value != null
-                      ? FontWeight.w600
-                      : FontWeight.w400),
-            ),
-          ]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: PsgText.label(9, letterSpacing: 1.4, color: PsgColors.primary),
         ),
-      ),
-    ]);
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.40),
+              borderRadius: BorderRadius.circular(14),
+              border: value != null
+                  ? Border.all(color: PsgColors.primaryContainer, width: 1.5)
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_month_rounded,
+                  size: 16,
+                  color: value != null
+                      ? PsgColors.primaryContainer
+                      : PsgColors.outline,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  fmt ?? 'Select date',
+                  style: PsgText.body(
+                    13,
+                    color: value != null
+                        ? PsgColors.onSurface
+                        : PsgColors.outline,
+                    weight: value != null ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

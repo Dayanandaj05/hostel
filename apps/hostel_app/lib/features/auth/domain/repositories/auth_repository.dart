@@ -1,105 +1,73 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
 import '../entities/user_model.dart';
-import '../../../../services/storage/firestore_service.dart';
+import '../../../../services/mock/mock_service.dart';
 
 const usersCollection = 'users';
 
 class AuthService {
-  AuthService({
-    required FirebaseAuth firebaseAuth,
-    required FirebaseFirestore firestore,
-  })  : _firebaseAuth = firebaseAuth,
-        _firestore = FirestoreService(firestore);
+  AuthService();
 
-  final FirebaseAuth _firebaseAuth;
-  final FirestoreService _firestore;
+  UserModel? get currentUser => MockService.currentUser;
+  String? get currentUserId => MockService.currentUid;
 
-  User? get currentUser => _firebaseAuth.currentUser;
-  String? get currentUserId => _firebaseAuth.currentUser?.uid;
-
-  Stream<User?> authStateChanges() => _firebaseAuth.authStateChanges();
+  Stream<UserModel?> authStateChanges() => MockService.watchCurrentUserModel();
 
   Future<UserModel?> getCurrentUserModel() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) return null;
-
-    final doc = await _firestore.getDocument('$usersCollection/${user.uid}');
-    if (doc == null) return null;
-
-    return UserModel(
-      uid: user.uid,
-      name: doc['name'] as String? ?? user.displayName ?? 'User',
-      email: doc['email'] as String? ?? user.email ?? '',
-      role: UserRoleExtension.fromString(doc['role'] as String?) ??
-          UserRole.student,
-      roomId: doc['roomId'] as String?,
-      createdAt: doc['createdAt'] != null
-          ? (doc['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-    );
+    return MockService.getCurrentUserModel();
   }
 
   Stream<UserModel?> watchCurrentUserModel() {
-    return authStateChanges().asyncExpand((user) {
-      if (user == null) {
-        return Stream.value(null);
-      }
-
-      return _firestore.watchDocument('$usersCollection/${user.uid}').map((doc) {
-        if (doc == null) return null;
-
-        return UserModel(
-          uid: user.uid,
-          name: doc['name'] as String? ?? user.displayName ?? 'User',
-          email: doc['email'] as String? ?? user.email ?? '',
-          role: UserRoleExtension.fromString(doc['role'] as String?) ??
-              UserRole.student,
-          roomId: doc['roomId'] as String?,
-          createdAt: doc['createdAt'] != null
-              ? (doc['createdAt'] as Timestamp).toDate()
-              : DateTime.now(),
-        );
-      });
-    });
+    return MockService.watchCurrentUserModel();
   }
 
-  Future<UserCredential> signUpWithEmailAndPassword({
+  Future<UserModel> signUpWithEmailAndPassword({
     required String email,
     required String password,
     required String name,
     required UserRole role,
   }) async {
     try {
-      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+      final user = await MockService.signUp(
         email: email.trim(),
         password: password,
+        name: name,
+        role: role,
       );
-
-      final user = credential.user;
-      if (user != null) {
-        await user.updateDisplayName(name);
-        await createUserDocument(user.uid, name, email, role);
+      if (user == null) {
+        throw AuthServiceException(
+            code: 'signup-failed', message: 'Sign-up failed.');
       }
-
-      return credential;
-    } on FirebaseAuthException catch (error) {
-      throw AuthServiceException.fromFirebase(error);
+      return user;
+    } on AuthServiceException {
+      rethrow;
+    } catch (error) {
+      throw AuthServiceException(
+        code: 'signup-failed',
+        message: error.toString(),
+      );
     }
   }
 
-  Future<UserCredential> signInWithEmailAndPassword({
+  Future<UserModel> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
     try {
-      return await _firebaseAuth.signInWithEmailAndPassword(
+      final user = await MockService.signIn(
         email: email.trim(),
         password: password,
       );
-    } on FirebaseAuthException catch (error) {
-      throw AuthServiceException.fromFirebase(error);
+      if (user == null) {
+        throw AuthServiceException(
+          code: 'wrong-password',
+          message: 'Incorrect email or password.',
+        );
+      }
+      return user;
+    } on AuthServiceException {
+      rethrow;
+    } catch (error) {
+      throw AuthServiceException(
+          code: 'signin-failed', message: error.toString());
     }
   }
 
@@ -109,44 +77,28 @@ class AuthService {
     String email,
     UserRole role,
   ) async {
-    final userModel = UserModel(
-      uid: uid,
-      name: name,
-      email: email,
-      role: role,
-      createdAt: DateTime.now(),
-    );
-
-    await _firestore.setDocument(
-      path: '$usersCollection/$uid',
-      data: userModel.toFirestore(),
-      merge: false,
-    );
+    await MockService.signUp(
+        email: email, password: '123456', name: name, role: role);
   }
 
   Future<void> updateUserRole(String uid, UserRole role) async {
-    await _firestore.updateDocument(
-      path: '$usersCollection/$uid',
-      data: {'role': role.value},
-    );
+    // Mock mode: user role updates can be added here if needed.
   }
 
   Future<void> allocateRoom(String uid, String roomId) async {
-    await _firestore.updateDocument(
-      path: '$usersCollection/$uid',
-      data: {'roomId': roomId},
-    );
+    // Mock mode: room allocation can be added here if needed.
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
     try {
-      await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
-    } on FirebaseAuthException catch (error) {
-      throw AuthServiceException.fromFirebase(error);
+      await MockService.sendPasswordResetEmail(email.trim());
+    } catch (error) {
+      throw AuthServiceException(
+          code: 'reset-failed', message: error.toString());
     }
   }
 
-  Future<void> signOut() => _firebaseAuth.signOut();
+  Future<void> signOut() => MockService.signOut();
 }
 
 class AuthServiceException implements Exception {
@@ -154,22 +106,6 @@ class AuthServiceException implements Exception {
 
   final String code;
   final String message;
-
-  factory AuthServiceException.fromFirebase(FirebaseAuthException error) {
-    final message = switch (error.code) {
-      'user-not-found' => 'No user found with that email.',
-      'wrong-password' => 'Incorrect password.',
-      'email-already-in-use' => 'An account with that email already exists.',
-      'weak-password' => 'Password is too weak. Use at least 6 characters.',
-      'invalid-email' => 'The email address is invalid.',
-      _ => error.message ?? 'Authentication operation failed.',
-    };
-
-    return AuthServiceException(
-      code: error.code,
-      message: message,
-    );
-  }
 
   @override
   String toString() => 'AuthServiceException(code: $code, message: $message)';

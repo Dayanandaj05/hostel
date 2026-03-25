@@ -1,19 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Student Dashboard  —  Glassmorphism UI
+// Student Dashboard  —  Glassmorphism UI  |  Mock-Offline Compatible
 // ─────────────────────────────────────────────────────────────────────────────
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../../app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
 import '../../../../student/data/student_profile_provider.dart';
+import '../../../../tokens/presentation/controllers/food_token_controller.dart';
+import '../../../../tokens/domain/entities/food_token_model.dart';
 import '../../../../../core/design/psg_design_system.dart';
-import '../../../../leave/presentation/pages/student/leave_request_screen.dart';
-import '../../../../mess/presentation/pages/student/book_token_screen.dart';
-import 'student_profile_screen.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -29,28 +26,35 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
   double _scrollOffset = 0;
-  int _navIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(
-        () => setState(() => _scrollOffset = _scrollController.offset));
+      () => setState(() => _scrollOffset = _scrollController.offset),
+    );
 
     _entryController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 550));
-    _fadeAnim =
-        CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim =
-        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
-            CurvedAnimation(
-                parent: _entryController, curve: Curves.easeOutCubic));
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+    );
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _entryController.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final uid = AuthProviderController.of(context).user?.uid;
-      if (uid != null) context.read<StudentProfileProvider>().startWatching(uid);
+      if (uid != null) {
+        context.read<StudentProfileProvider>().startWatching(uid);
+        context.read<FoodTokenController>().startWatchingTokens(uid);
+      }
     });
   }
 
@@ -61,10 +65,23 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     super.dispose();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final profile = context.watch<StudentProfileProvider>();
+    final tokenController = context.watch<FoodTokenController>();
+    final now = DateTime.now();
+    final activeBookedTokens = tokenController.myTokens
+        .where((t) => t.status == FoodTokenStatus.active)
+        .length;
+    final monthMessBill = tokenController.myTokens
+        .where((t) {
+          final d = t.scheduledDate;
+          if (d == null) return false;
+          return d.year == now.year &&
+              d.month == now.month &&
+              t.status != FoodTokenStatus.cancelled;
+        })
+        .fold<double>(0, (sum, t) => sum + (t.totalPrice ?? t.itemPrice ?? 0));
 
     return MeshBackground(
       child: Scaffold(
@@ -73,6 +90,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         appBar: PsgGlassAppBar(
           scrollOffset: _scrollOffset,
           actions: [
+            IconButton(
+              icon: const Icon(
+                Icons.logout_rounded,
+                color: PsgColors.primary,
+                size: 20,
+              ),
+              onPressed: () async {
+                await AuthProviderController.of(context).signOut();
+                if (mounted && context.mounted) {
+                  context.go(AppRoutes.login);
+                }
+              },
+              tooltip: 'Logout',
+            ),
+            const SizedBox(width: 4),
             _balanceChip(profile.balance),
             const SizedBox(width: 12),
             _avatarButton(),
@@ -82,36 +114,26 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           opacity: _fadeAnim,
           child: SlideTransition(
             position: _slideAnim,
-            child: _buildBody(profile),
+            child: _homeTab(profile, activeBookedTokens, monthMessBill),
           ),
         ),
-        bottomNavigationBar: _buildBottomNav(),
       ),
     );
   }
 
-  // ── Body ─────────────────────────────────────────────────────────────────
-  Widget _buildBody(StudentProfileProvider profile) {
-    return switch (_navIndex) {
-      0 => _homeTab(profile),
-      1 => _messScreen(), // PSG Book Token Screen
-      2 => _leaveTab(),
-      3 => _profileTab(),
-      _ => _homeTab(profile),
-    };
-  }
-
-  // New tab builders
-  Widget _messScreen() => const BookTokenScreen(); // This will point to features/mess/...
-  Widget _leaveTab() => const LeaveRequestScreen();
-  Widget _profileTab() => const StudentProfileScreen();
-
-  Widget _homeTab(StudentProfileProvider profile) {
+  Widget _homeTab(
+    StudentProfileProvider profile,
+    int activeBookedTokens,
+    double monthMessBill,
+  ) {
     return ListView(
       controller: _scrollController,
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 88,
-        bottom: 130,
+        bottom: 24,
         left: 24,
         right: 24,
       ),
@@ -119,15 +141,39 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         // ── Greeting
         StaggeredEntry(
           index: 0,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Hi, ${profile.displayName.split(' ').first}',
-                style: PsgText.headline(32, color: PsgColors.primary)),
-            const SizedBox(height: 4),
-            Text('Welcome back to your hostel hub.',
-                style: PsgText.body(14,
-                    weight: FontWeight.w500,
-                    color: PsgColors.onSurfaceVariant)),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => context.go(AppRoutes.studentProfile),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Hi, ${profile.displayName.split(' ').first}',
+                      style: PsgText.headline(32, color: PsgColors.primary),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      size: 18,
+                      color: PsgColors.primary.withValues(alpha: 0.7),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Tap your name to open profile.',
+                style: PsgText.body(
+                  14,
+                  weight: FontWeight.w500,
+                  color: PsgColors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
 
@@ -135,240 +181,199 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         StaggeredEntry(
           index: 1,
           child: GlassCard(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('CURRENT RESIDENCE',
-                        style: PsgText.label(9,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CURRENT RESIDENCE',
+                          style: PsgText.label(
+                            9,
                             letterSpacing: 1.6,
-                            color: PsgColors.secondary)),
-                    const SizedBox(height: 4),
-                    Text(profile.roomId ?? 'Room 402-B',
-                        style: PsgText.headline(28, color: PsgColors.primary)),
-                  ]),
-                  const Icon(Icons.qr_code_2_rounded,
-                      color: PsgColors.primary, size: 32),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(children: [
-                Expanded(
-                    child: _infoChip('Roll Number', profile.rollNumber)),
-                const SizedBox(width: 12),
-                Expanded(child: _infoChip('Mess Wing', profile.messType)),
-              ]),
-              const SizedBox(height: 20),
-              // Swipe dot indicator
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Container(
-                    width: 24, height: 5,
-                    decoration: BoxDecoration(
+                            color: PsgColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          profile.roomId,
+                          style: PsgText.headline(34, color: PsgColors.primary),
+                        ),
+                      ],
+                    ),
+                    const Icon(
+                      Icons.qr_code_2_rounded,
+                      color: PsgColors.primary,
+                      size: 32,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _infoChip('Roll Number', profile.rollNumber),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: _infoChip('Mess Wing', profile.messType)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Swipe dot indicator
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 5,
+                      decoration: BoxDecoration(
                         color: PsgColors.primary,
-                        borderRadius: BorderRadius.circular(3))),
-                const SizedBox(width: 5),
-                Container(
-                    width: 5, height: 5,
-                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
                         color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(3))),
-              ]),
-            ]),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 14),
 
-        // ── Stat Row
+        // ── Mini stats
         StaggeredEntry(
           index: 2,
-          child: Row(children: [
-            Expanded(child: _statCard('2', 'Tokens', isGreen: false)),
-            const SizedBox(width: 10),
-            Expanded(child: _statCard('₹0', 'Fees Due', isGreen: true)),
-          ]),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => context.go(AppRoutes.studentMyTokens),
+                  child: _statCard(
+                    '$activeBookedTokens',
+                    'Booked Tokens',
+                    isGreen: false,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: _statCard('3', 'Tokens', isGreen: false)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _statCard(
+                  '₹${monthMessBill.toStringAsFixed(0)}',
+                  'Mess Bill (Month)',
+                  isGreen: true,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
-
-        // ── Mess Component (Next Meal)
-        StaggeredEntry(
-          index: 3,
-          child: _messComponent(),
-        ),
-        const SizedBox(height: 24),
 
         // ── Feature grid
-        StaggeredEntry(
-          index: 4,
-          child: PsgSectionHeader(title: 'Quick Actions', action: 'View All'),
-        ),
-        StaggeredEntry(
-          index: 5,
-          child: _featureGrid(),
-        ),
+        _featureGrid(),
       ],
     );
   }
 
-
-  // ── Feature grid ─────────────────────────────────────────────────────────
   Widget _featureGrid() {
     final modules = [
-      _Mod('Leave', Icons.flight_takeoff_rounded,
-          AppRoutes.studentLeave, const Color(0xFFEFF6FF), const Color(0xFF003F87)),
-      _Mod('T-Shirt', Icons.checkroom_rounded,
-          AppRoutes.studentTShirt, const Color(0xFFEEF2FF), const Color(0xFF4F46E5)),
-      _Mod('Hostel Day', Icons.celebration_rounded,
-          AppRoutes.studentDayEntry, const Color(0xFFFFF7ED), const Color(0xFFEA580C)),
-      _Mod('My Room', Icons.meeting_room_rounded,
-          AppRoutes.studentRoom, const Color(0xFFEFF6FF), const Color(0xFF003F87)),
-      _Mod('Complaints', Icons.report_problem_rounded,
-          AppRoutes.studentComplaints, const Color(0xFFFFF1F2), const Color(0xFFBA1A1A)),
-      _Mod('Notices', Icons.notifications_active_rounded,
-          AppRoutes.studentNotices, const Color(0xFFFAF5FF), const Color(0xFF7C3AED)),
-      _Mod('Fees', Icons.payments_rounded,
-          AppRoutes.studentFees, const Color(0xFFF0FDF4), const Color(0xFF15803D)),
-      _Mod('Contact', Icons.support_agent_rounded,
-          AppRoutes.studentContact, const Color(0xFFF0FDF4), const Color(0xFF15803D)),
+      _Mod(
+        'T-Shirt',
+        Icons.checkroom_rounded,
+        AppRoutes.studentTShirt,
+        const Color(0xFF4F46E5),
+      ),
+      _Mod(
+        'Hostel Day',
+        Icons.celebration_rounded,
+        AppRoutes.studentDayEntry,
+        const Color(0xFFEA580C),
+      ),
+      _Mod(
+        'My Room',
+        Icons.meeting_room_rounded,
+        AppRoutes.studentRoom,
+        const Color(0xFF003F87),
+      ),
+      _Mod(
+        'Complaints',
+        Icons.report_problem_rounded,
+        AppRoutes.studentComplaints,
+        const Color(0xFFBA1A1A),
+      ),
+      _Mod(
+        'Contact',
+        Icons.support_agent_rounded,
+        AppRoutes.studentContact,
+        const Color(0xFF15803D),
+      ),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-          childAspectRatio: 0.82),
-      itemCount: modules.length,
-      itemBuilder: (ctx, i) {
-        final m = modules[i];
-        return StaggeredEntry(
-          index: i,
-          child: GestureDetector(
-            onTap: () => context.go(m.route),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 62, height: 62,
-                  decoration: BoxDecoration(
-                    color: m.bg,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                          color: m.fg.withValues(alpha: 0.1),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4))
+    return Column(
+      children: modules
+          .asMap()
+          .entries
+          .map((entry) {
+            final i = entry.key;
+            final m = entry.value;
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: i == modules.length - 1 ? 0 : 10,
+              ),
+              child: StaggeredEntry(
+                index: i + 4,
+                child: GlassCard(
+                  borderRadius: 14,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  onTap: () => context.go(m.route),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: m.fg.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(m.icon, color: m.fg, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          m.label,
+                          style: PsgText.label(14, color: PsgColors.onSurface),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: PsgColors.onSurfaceVariant,
+                        size: 20,
+                      ),
                     ],
                   ),
-                  child: Icon(m.icon, color: m.fg, size: 28),
                 ),
-                const SizedBox(height: 10),
-                Text(m.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: PsgText.label(10,
-                        letterSpacing: 0.2,
-                        color: PsgColors.onSurfaceVariant)),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+            );
+          })
+          .toList(growable: false),
     );
   }
 
-  Widget _messComponent() {
-    final now = DateTime.now();
-    final hour = now.hour;
-    String nextMeal = 'Breakfast';
-    IconData mealIcon = Icons.coffee_rounded;
-    
-    if (hour >= 10 && hour < 15) {
-      nextMeal = 'Lunch';
-      mealIcon = Icons.lunch_dining_rounded;
-    } else if (hour >= 15 && hour < 22) {
-      nextMeal = 'Dinner';
-      mealIcon = Icons.dinner_dining_rounded;
-    }
-
-    final uid = AuthProviderController.of(context).user?.uid;
-
-    return GlassCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('MESS UPDATES',
-                  style: PsgText.label(9,
-                      letterSpacing: 1.6, color: PsgColors.secondary)),
-              const Icon(Icons.restaurant_rounded,
-                  color: PsgColors.primary, size: 20),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  color: PsgColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(mealIcon, color: PsgColors.primary, size: 26),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Next: $nextMeal',
-                        style: PsgText.headline(18, color: PsgColors.primary)),
-                    const SizedBox(height: 2),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('food_tokens')
-                          .where('userId', isEqualTo: uid)
-                          .where('date', isEqualTo: DateFormat('yyyy-MM-dd').format(now))
-                          .where('meal', isEqualTo: nextMeal)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        final booked = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
-                        return Text(
-                          booked ? '• Token Booked' : '• No Token Found',
-                          style: PsgText.body(12,
-                              weight: FontWeight.w600,
-                              color: booked ? PsgColors.green : PsgColors.amber),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () => setState(() => _navIndex = 1),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: PsgColors.primary,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text('BOOK', style: PsgText.label(11, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Sub-widgets ──────────────────────────────────────────────────────────
   Widget _balanceChip(int balance) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -377,32 +382,39 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
           BoxShadow(
-              color: PsgColors.primary.withOpacity(0.25),
-              blurRadius: 10,
-              offset: const Offset(0, 3))
+            color: PsgColors.primary.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.account_balance_wallet_rounded,
-            color: Colors.white, size: 14),
-        const SizedBox(width: 5),
-        Text('₹$balance',
-            style: PsgText.label(13, color: Colors.white)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.account_balance_wallet_rounded,
+            color: Colors.white,
+            size: 14,
+          ),
+          const SizedBox(width: 5),
+          Text('₹$balance', style: PsgText.label(13, color: Colors.white)),
+        ],
+      ),
     );
   }
 
   Widget _avatarButton() {
     return Container(
-      width: 40, height: 40,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: const LinearGradient(
-            colors: [PsgColors.primary, PsgColors.primaryContainer]),
+          colors: [PsgColors.primary, PsgColors.primaryContainer],
+        ),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child:
-          const Icon(Icons.person_rounded, color: Colors.white, size: 22),
+      child: const Icon(Icons.person_rounded, color: Colors.white, size: 22),
     );
   }
 
@@ -410,17 +422,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.30),
-          borderRadius: BorderRadius.circular(12)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label.toUpperCase(),
-            style: PsgText.label(8,
-                letterSpacing: 1.0,
-                color: Colors.grey.shade500)),
-        const SizedBox(height: 3),
-        Text(value,
-            style: PsgText.label(13, color: PsgColors.onSurface)),
-      ]),
+        color: Colors.white.withValues(alpha: 0.30),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: PsgText.label(
+              8,
+              letterSpacing: 1.0,
+              color: Colors.grey.shade500,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(value, style: PsgText.label(13, color: PsgColors.onSurface)),
+        ],
+      ),
     );
   }
 
@@ -428,56 +447,36 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     return GlassCard(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
       borderRadius: 14,
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(value,
-            style: PsgText.headline(20,
-                color: isGreen ? PsgColors.green : PsgColors.primary)),
-        const SizedBox(height: 3),
-        Text(label.toUpperCase(),
-            style: PsgText.label(8,
-                letterSpacing: 0.6,
-                color: Colors.grey.shade500),
-            textAlign: TextAlign.center),
-      ]),
-    );
-  }
-
-  // ── Bottom Nav ───────────────────────────────────────────────────────────
-  Widget _buildBottomNav() {
-    return PsgBottomNav(
-      currentIndex: _navIndex,
-      onTap: (i) => setState(() {
-        _navIndex = i;
-        _scrollController.jumpTo(0);
-      }),
-      items: const [
-        PsgNavItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home_rounded,
-            label: 'HOME'),
-        PsgNavItem(
-            icon: Icons.confirmation_number_outlined,
-            activeIcon: Icons.confirmation_number_rounded,
-            label: 'BOOK'),
-        PsgNavItem(
-            icon: Icons.flight_takeoff_outlined,
-            activeIcon: Icons.flight_takeoff_rounded,
-            label: 'LEAVE'),
-        PsgNavItem(
-            icon: Icons.person_outlined,
-            activeIcon: Icons.person_rounded,
-            label: 'PROFILE'),
-      ],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: PsgText.headline(
+              20,
+              color: isGreen ? PsgColors.green : PsgColors.primary,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label.toUpperCase(),
+            style: PsgText.label(
+              8,
+              letterSpacing: 0.6,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ── Data class ───────────────────────────────────────────────────────────────
 class _Mod {
   final String label;
   final IconData icon;
   final String route;
-  final Color bg;
   final Color fg;
-  const _Mod(this.label, this.icon, this.route, this.bg, this.fg);
+  const _Mod(this.label, this.icon, this.route, this.fg);
 }

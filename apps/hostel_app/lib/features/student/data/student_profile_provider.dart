@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:hostel_app/services/mock/mock_service.dart';
 
 class StudentProfileProvider extends ChangeNotifier {
-  StudentProfileProvider(this._firestore);
-
-  final FirebaseFirestore _firestore;
+  StudentProfileProvider();
   String? _currentUid;
   StreamSubscription? _subscription;
 
@@ -24,15 +21,9 @@ class StudentProfileProvider extends ChangeNotifier {
     }
 
     _subscription?.cancel();
-    _subscription = _firestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .listen(
-      (doc) {
-        if (doc.exists) {
-          profileData = doc.data();
-        }
+    _subscription = MockService.watchStudentProfile(uid).listen(
+      (data) {
+        profileData = data;
         isLoading = false;
         notifyListeners();
       },
@@ -68,15 +59,18 @@ class StudentProfileProvider extends ChangeNotifier {
       (profileData?['messSupervisors'] as List?)?.cast<String>() ?? [];
   // true = North Indian opted, false = South Indian (default)
   bool get isNorthIndianMess =>
-      (profileData?['messType'] as String?)?.toLowerCase().contains('north') == true;
-  int get establishment => (profileData?['establishment'] as num?)?.toInt() ?? 0;
+      (profileData?['messType'] as String?)?.toLowerCase().contains('north') ==
+      true;
+  int get establishment =>
+      (profileData?['establishment'] as num?)?.toInt() ?? 0;
   int get deposit => (profileData?['deposit'] as num?)?.toInt() ?? 0;
   int get balance => (profileData?['balance'] as num?)?.toInt() ?? 0;
   String get contactPhone => profileData?['contactPhone'] as String? ?? '--';
   String get fatherName => profileData?['fatherName'] as String? ?? '--';
   String get address => profileData?['address'] as String? ?? '--';
   String get primaryMobile => profileData?['primaryMobile'] as String? ?? '--';
-  String get secondaryMobile => profileData?['secondaryMobile'] as String? ?? '--';
+  String get secondaryMobile =>
+      profileData?['secondaryMobile'] as String? ?? '--';
   String get bloodGroup => profileData?['bloodGroup'] as String? ?? '--';
 
   Future<void> updateProfile({
@@ -86,8 +80,8 @@ class StudentProfileProvider extends ChangeNotifier {
     String? bloodGroup,
   }) async {
     if (profileData == null) return;
-    
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    final uid = MockService.currentUid;
     if (uid == null) return;
 
     final updates = <String, dynamic>{
@@ -95,12 +89,12 @@ class StudentProfileProvider extends ChangeNotifier {
       if (secondaryMobile != null) 'secondaryMobile': secondaryMobile,
       if (address != null) 'address': address,
       if (bloodGroup != null) 'bloodGroup': bloodGroup,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': DateTime.now(),
     };
 
     if (updates.isEmpty) return;
-    
-    await _firestore.collection('users').doc(uid).update(updates);
+
+    await MockService.updateStudentProfile(uid, updates);
   }
 
   @override

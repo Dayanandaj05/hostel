@@ -5,6 +5,24 @@ import '../features/auth/presentation/controllers/auth_provider_controller.dart'
 import '../core/design/psg_design_system.dart';
 import 'app_router.dart';
 
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
+}
+
 class HostelManagementApp extends StatefulWidget {
   const HostelManagementApp({super.key});
 
@@ -29,6 +47,7 @@ class _HostelManagementAppState extends State<HostelManagementApp> {
       debugShowCheckedModeBanner: false,
       title: 'Hostel Management System',
       theme: PsgTheme.light,
+      scrollBehavior: const _AppScrollBehavior(),
       routerConfig: _router,
     );
   }

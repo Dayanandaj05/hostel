@@ -1,7 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Admin Dashboard  —  Glassmorphism UI
+// Admin Dashboard  —  Glassmorphism UI  |  Mock-Offline Compatible
 // ─────────────────────────────────────────────────────────────────────────────
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -28,15 +27,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   void initState() {
     super.initState();
     _scrollController.addListener(
-        () => setState(() => _scrollOffset = _scrollController.offset));
+      () => setState(() => _scrollOffset = _scrollController.offset),
+    );
     _entryController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _fadeAnim =
-        CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim =
-        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
-            CurvedAnimation(
-                parent: _entryController, curve: Curves.easeOutCubic));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _entryController.forward();
   }
 
@@ -49,10 +53,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   static const _actions = [
     _Action('Add Users', Icons.person_add_rounded, AppRoutes.adminUsers),
-    _Action('Assign Roles', Icons.admin_panel_settings_rounded, AppRoutes.adminRoles),
+    _Action(
+      'Assign Roles',
+      Icons.admin_panel_settings_rounded,
+      AppRoutes.adminRoles,
+    ),
     _Action('Allocate Rooms', Icons.meeting_room_rounded, AppRoutes.adminRooms),
-    _Action('Manage Menu', Icons.restaurant_menu_rounded, AppRoutes.adminMessMenu),
-    _Action('Notices', Icons.campaign_rounded, AppRoutes.adminNotices),
+    _Action('View Data', Icons.analytics_rounded, AppRoutes.adminDashboard),
+    _Action('Post Notice', Icons.campaign_rounded, AppRoutes.adminNotices),
     _Action('Hostel Day', Icons.celebration_rounded, AppRoutes.adminHostelDay),
   ];
 
@@ -66,12 +74,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           scrollOffset: _scrollOffset,
           actions: [
             IconButton(
-              icon: const Icon(Icons.logout_rounded,
-                  color: PsgColors.primary, size: 22),
+              icon: const Icon(
+                Icons.logout_rounded,
+                color: PsgColors.primary,
+                size: 22,
+              ),
               onPressed: () async {
-                final router = GoRouter.of(context);
                 await AuthProviderController.of(context).signOut();
-                router.go(AppRoutes.login);
+                if (mounted && context.mounted) context.go(AppRoutes.login);
               },
             ),
           ],
@@ -84,30 +94,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               controller: _scrollController,
               padding: EdgeInsets.only(
                 top: MediaQuery.of(context).padding.top + 88,
-                bottom: 60, left: 24, right: 24,
+                bottom: 24,
+                left: 24,
+                right: 24,
               ),
               children: [
                 // ── Headline
                 StaggeredEntry(
                   index: 0,
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text('System Overview',
-                        style: PsgText.headline(30,
-                            color: PsgColors.primary)),
-                    const SizedBox(height: 4),
-                    Text(
-                        'Welcome back, Administrator. '
-                        'Here\'s the current pulse of PSG Hostel.',
-                        style: PsgText.body(14,
-                            color: PsgColors.onSurfaceVariant,
-                            weight: FontWeight.w500)),
-                  ]),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'System Overview',
+                        style: PsgText.headline(30, color: PsgColors.primary),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Welcome Administrator. '
+                        'Here\'s your hostel dashboard.',
+                        style: PsgText.body(
+                          14,
+                          color: PsgColors.onSurfaceVariant,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
 
-                // ── Metrics bento
+                // ── Metrics cards
                 StaggeredEntry(index: 1, child: _metricsGrid()),
                 const SizedBox(height: 28),
 
@@ -115,18 +132,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 StaggeredEntry(
                   index: 2,
                   child: PsgSectionHeader(
-                      title: 'Administrative Actions',
-                      action: 'View Logs'),
+                    title: 'Administrative Actions',
+                    action: 'Help',
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 StaggeredEntry(index: 3, child: _actionsGrid()),
                 const SizedBox(height: 28),
 
-                // ── Recent activity
+                // ── Summary info
                 StaggeredEntry(
-                    index: 4,
-                    child: PsgSectionHeader(
-                        title: 'Recent System Activity')),
+                  index: 4,
+                  child: PsgSectionHeader(title: 'System Statistics'),
+                ),
                 const SizedBox(height: 14),
                 StaggeredEntry(index: 5, child: _activityCard()),
               ],
@@ -137,40 +155,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ── Metrics 2×2 ──────────────────────────────────────────────────────────
   Widget _metricsGrid() {
     final metrics = [
-      _Metric('Total Students', Icons.group_rounded,
-          FirebaseFirestore.instance.collection('users').snapshots(),
-          const Color(0xFF003F87)),
-      _Metric('Total Rooms', Icons.bed_rounded,
-          FirebaseFirestore.instance.collection('rooms').snapshots(),
-          const Color(0xFF4F46E5)),
       _Metric(
-          'Pending Leaves',
-          Icons.event_busy_rounded,
-          FirebaseFirestore.instance
-              .collection('leave_requests')
-              .where('status', isEqualTo: 'pending')
-              .snapshots(),
-          PsgColors.error),
+        'Total Students',
+        Icons.group_rounded,
+        '450',
+        const Color(0xFF003F87),
+      ),
+      _Metric('Total Rooms', Icons.bed_rounded, '200', const Color(0xFF4F46E5)),
       _Metric(
-          'Open Complaints',
-          Icons.report_problem_rounded,
-          FirebaseFirestore.instance.collection('complaints').where(
-              'status',
-              whereIn: ['pending', 'in_progress']).snapshots(),
-          const Color(0xFFB45309)),
+        'Pending Leaves',
+        Icons.event_busy_rounded,
+        '12',
+        PsgColors.error,
+      ),
+      _Metric(
+        'Open Complaints',
+        Icons.report_problem_rounded,
+        '8',
+        const Color(0xFFB45309),
+      ),
     ];
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.4),
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.4,
+      ),
       itemCount: metrics.length,
       itemBuilder: (_, i) {
         final m = metrics[i];
@@ -184,22 +200,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(m.label,
-                        style: PsgText.label(9,
-                            letterSpacing: 1.2,
-                            color: PsgColors.secondary)),
+                    child: Text(
+                      m.label,
+                      style: PsgText.label(
+                        9,
+                        letterSpacing: 1.2,
+                        color: PsgColors.secondary,
+                      ),
+                    ),
                   ),
-                  Icon(m.icon, color: m.color.withOpacity(0.3), size: 28),
+                  Icon(m.icon, color: m.color.withValues(alpha: 0.3), size: 28),
                 ],
               ),
               const Spacer(),
-              StreamBuilder<QuerySnapshot>(
-                stream: m.stream,
-                builder: (_, s) => Text(
-                  s.hasData ? '${s.data!.docs.length}' : '–',
-                  style: PsgText.headline(36, color: m.color),
-                ),
-              ),
+              Text(m.value, style: PsgText.headline(36, color: m.color)),
             ],
           ),
         );
@@ -207,108 +221,142 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ── Actions grid ──────────────────────────────────────────────────────────
   Widget _actionsGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.85),
-      itemCount: _actions.length,
-      itemBuilder: (_, i) {
-        final a = _actions[i];
-        return StaggeredEntry(
-          index: i,
-          child: GlassCard(
-            borderRadius: 16,
-            padding: const EdgeInsets.all(0),
-            onTap: () => context.go(a.route),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 48, height: 48,
-                  decoration: BoxDecoration(
-                    color: PsgColors.primary.withOpacity(0.06),
-                    shape: BoxShape.circle,
+    return Column(
+      children: _actions
+          .asMap()
+          .entries
+          .map((entry) {
+            final i = entry.key;
+            final a = entry.value;
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: i == _actions.length - 1 ? 0 : 10,
+              ),
+              child: StaggeredEntry(
+                index: i,
+                child: GlassCard(
+                  borderRadius: 14,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
                   ),
-                  child: Icon(a.icon,
-                      color: PsgColors.primary, size: 22),
+                  onTap: () => context.go(a.route),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: PsgColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(a.icon, color: PsgColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          a.label,
+                          style: PsgText.label(14, color: PsgColors.onSurface),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: PsgColors.onSurfaceVariant,
+                        size: 20,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 10),
-                Text(a.label,
-                    textAlign: TextAlign.center,
-                    style: PsgText.label(10,
-                        letterSpacing: 0.2,
-                        color: PsgColors.onSurfaceVariant),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+            );
+          })
+          .toList(growable: false),
     );
   }
 
-  // ── Activity card ─────────────────────────────────────────────────────────
   Widget _activityCard() {
     final items = [
       _ActivityItem(
-          'Room 304 Allocated',
-          'Admin assigned Rahul S. to Room 304 (Block A) • 12 mins ago',
-          PsgColors.primary),
+        'Room Allocation',
+        'Assigned Rahul S. to Room 304 (Block A)',
+        PsgColors.primary,
+      ),
       _ActivityItem(
-          'Mess Notice Published',
-          'Weekly menu update for Oct 21-27 • 1 hour ago',
-          PsgColors.secondary),
+        'Menu Published',
+        'Weekly menu for Oct 22-28 posted',
+        PsgColors.secondary,
+      ),
       _ActivityItem(
-          'New Maintenance Complaint',
-          'Room 112: Water leakage reported • 3 hours ago',
-          PsgColors.error),
+        'New Complaint',
+        'Room 112: Water leakage reported',
+        PsgColors.error,
+      ),
     ];
 
     return GlassCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.history_rounded,
-              color: PsgColors.primary, size: 20),
-          const SizedBox(width: 8),
-          Text('Recent System Activity',
-              style:
-                  PsgText.headline(16, color: PsgColors.primary, weight: FontWeight.w800)),
-        ]),
-        const SizedBox(height: 20),
-        ...items.map((item) => Padding(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.history_rounded,
+                color: PsgColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Recent Activity',
+                style: PsgText.headline(
+                  16,
+                  color: PsgColors.primary,
+                  weight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...items.map(
+            (item) => Padding(
               padding: const EdgeInsets.only(bottom: 18),
               child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Container(
-                    width: 4, height: 40,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 4,
+                    height: 40,
                     margin: const EdgeInsets.only(right: 14, top: 3),
                     decoration: BoxDecoration(
-                        color: item.color.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(2))),
-                Expanded(
-                  child: Column(
+                      color: item.color.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    Text(item.title,
-                        style: PsgText.label(13,
-                            color: PsgColors.onSurface)),
-                    const SizedBox(height: 2),
-                    Text(item.subtitle,
-                        style: PsgText.body(12,
-                            color: PsgColors.onSurfaceVariant)),
-                  ]),
-                ),
-              ]),
-            )),
-      ]),
+                        Text(
+                          item.title,
+                          style: PsgText.label(13, color: PsgColors.onSurface),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.subtitle,
+                          style: PsgText.body(
+                            12,
+                            color: PsgColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -323,9 +371,9 @@ class _Action {
 class _Metric {
   final String label;
   final IconData icon;
-  final Stream<QuerySnapshot> stream;
+  final String value;
   final Color color;
-  const _Metric(this.label, this.icon, this.stream, this.color);
+  const _Metric(this.label, this.icon, this.value, this.color);
 }
 
 class _ActivityItem {
