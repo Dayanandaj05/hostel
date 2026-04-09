@@ -1,6 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Admin Dashboard  —  Glassmorphism UI  |  Mock-Offline Compatible
+// Admin Dashboard  —  Live Firestore Analytics
 // ─────────────────────────────────────────────────────────────────────────────
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -37,10 +40,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       parent: _entryController,
       curve: Curves.easeOut,
     );
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
-        );
+    _slideAnim =
+        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+    );
     _entryController.forward();
   }
 
@@ -59,7 +62,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       AppRoutes.adminRoles,
     ),
     _Action('Allocate Rooms', Icons.meeting_room_rounded, AppRoutes.adminRooms),
-    _Action('Token Inventory', Icons.inventory_2_rounded, AppRoutes.adminFoodTokens),
+    _Action(
+      'Token Inventory',
+      Icons.inventory_2_rounded,
+      AppRoutes.adminFoodTokens,
+    ),
     _Action('View Data', Icons.analytics_rounded, AppRoutes.adminDashboard),
     _Action('Post Notice', Icons.campaign_rounded, AppRoutes.adminNotices),
     _Action('Hostel Day', Icons.celebration_rounded, AppRoutes.adminHostelDay),
@@ -82,7 +89,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
               onPressed: () async {
                 await AuthProviderController.of(context).signOut();
-                if (mounted && context.mounted) context.go(AppRoutes.login);
+                if (mounted && context.mounted) {
+                  context.go(AppRoutes.login);
+                }
               },
             ),
           ],
@@ -100,7 +109,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 right: 24,
               ),
               children: [
-                // ── Headline
                 StaggeredEntry(
                   index: 0,
                   child: Column(
@@ -112,8 +120,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Welcome Administrator. '
-                        'Here\'s your hostel dashboard.',
+                        'Welcome Administrator. Here\'s your hostel dashboard.',
                         style: PsgText.body(
                           14,
                           color: PsgColors.onSurfaceVariant,
@@ -124,15 +131,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // ── Metrics cards
                 StaggeredEntry(index: 1, child: _metricsGrid()),
                 const SizedBox(height: 28),
-
-                // ── Admin actions
                 StaggeredEntry(
                   index: 2,
-                  child: PsgSectionHeader(
+                  child: const PsgSectionHeader(
                     title: 'Administrative Actions',
                     action: 'Help',
                   ),
@@ -140,14 +143,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 const SizedBox(height: 10),
                 StaggeredEntry(index: 3, child: _actionsGrid()),
                 const SizedBox(height: 28),
-
-                // ── Summary info
                 StaggeredEntry(
                   index: 4,
-                  child: PsgSectionHeader(title: 'System Statistics'),
+                  child: const PsgSectionHeader(title: 'System Statistics'),
                 ),
                 const SizedBox(height: 14),
-                StaggeredEntry(index: 5, child: _activityCard()),
+                const StaggeredEntry(index: 5, child: _RecentActivityCard()),
               ],
             ),
           ),
@@ -157,40 +158,62 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _metricsGrid() {
-    final metrics = [
-      _Metric(
-        'Total Students',
-        Icons.group_rounded,
-        '450',
-        const Color(0xFF003F87),
-      ),
-      _Metric('Total Rooms', Icons.bed_rounded, '200', const Color(0xFF4F46E5)),
-      _Metric(
-        'Pending Leaves',
-        Icons.event_busy_rounded,
-        '12',
-        PsgColors.error,
-      ),
-      _Metric(
-        'Open Complaints',
-        Icons.report_problem_rounded,
-        '8',
-        const Color(0xFFB45309),
-      ),
-    ];
-
-    return GridView.builder(
+    return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.4,
-      ),
-      itemCount: metrics.length,
-      itemBuilder: (_, i) {
-        final m = metrics[i];
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.4,
+      children: [
+        _liveMetricCard(
+          label: 'Total Students',
+          icon: Icons.group_rounded,
+          color: const Color(0xFF003F87),
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'student')
+              .snapshots(),
+        ),
+        _liveMetricCard(
+          label: 'Pending Leaves',
+          icon: Icons.event_busy_rounded,
+          color: PsgColors.error,
+          stream: FirebaseFirestore.instance
+              .collection('leave_requests')
+              .where('status', isEqualTo: 'pending')
+              .snapshots(),
+        ),
+        _liveMetricCard(
+          label: 'Open Complaints',
+          icon: Icons.report_problem_rounded,
+          color: const Color(0xFFB45309),
+          stream: FirebaseFirestore.instance.collection('complaints').where(
+              'status',
+              whereIn: const ['pending', 'in_progress']).snapshots(),
+        ),
+        _liveMetricCard(
+          label: 'Hostel Day Registrations',
+          icon: Icons.celebration_rounded,
+          color: const Color(0xFF4F46E5),
+          stream: FirebaseFirestore.instance
+              .collection('day_entry_registrations')
+              .snapshots(),
+        ),
+      ],
+    );
+  }
+
+  Widget _liveMetricCard({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Stream<QuerySnapshot<Map<String, dynamic>>> stream,
+  }) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: stream,
+      builder: (context, snap) {
+        final count = snap.data?.docs.length ?? 0;
         return GlassCard(
           borderRadius: 20,
           padding: const EdgeInsets.all(18),
@@ -202,7 +225,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 children: [
                   Expanded(
                     child: Text(
-                      m.label,
+                      label,
                       style: PsgText.label(
                         9,
                         letterSpacing: 1.2,
@@ -210,11 +233,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                     ),
                   ),
-                  Icon(m.icon, color: m.color.withValues(alpha: 0.3), size: 28),
+                  Icon(icon, color: color.withValues(alpha: 0.3), size: 28),
                 ],
               ),
               const Spacer(),
-              Text(m.value, style: PsgText.headline(36, color: m.color)),
+              if (snap.connectionState == ConnectionState.waiting)
+                const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: PsgColors.primary,
+                  ),
+                )
+              else if (snap.hasError)
+                Text('--', style: PsgText.headline(36, color: color))
+              else
+                Text('$count', style: PsgText.headline(36, color: color)),
             ],
           ),
         );
@@ -224,88 +259,162 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Widget _actionsGrid() {
     return Column(
-      children: _actions
-          .asMap()
-          .entries
-          .map((entry) {
-            final i = entry.key;
-            final a = entry.value;
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: i == _actions.length - 1 ? 0 : 10,
+      children: _actions.asMap().entries.map((entry) {
+        final i = entry.key;
+        final a = entry.value;
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: i == _actions.length - 1 ? 0 : 10,
+          ),
+          child: StaggeredEntry(
+            index: i,
+            child: GlassCard(
+              borderRadius: 14,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
               ),
-              child: StaggeredEntry(
-                index: i,
-                child: GlassCard(
-                  borderRadius: 14,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
+              onTap: () => context.go(a.route),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: PsgColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(a.icon, color: PsgColors.primary, size: 20),
                   ),
-                  onTap: () => context.go(a.route),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: PsgColors.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(a.icon, color: PsgColors.primary, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          a.label,
-                          style: PsgText.label(14, color: PsgColors.onSurface),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: PsgColors.onSurfaceVariant,
-                        size: 20,
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      a.label,
+                      style: PsgText.label(14, color: PsgColors.onSurface),
+                    ),
                   ),
-                ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: PsgColors.onSurfaceVariant,
+                    size: 20,
+                  ),
+                ],
               ),
-            );
-          })
-          .toList(growable: false),
+            ),
+          ),
+        );
+      }).toList(growable: false),
+    );
+  }
+}
+
+class _Action {
+  final String label;
+  final IconData icon;
+  final String route;
+
+  const _Action(this.label, this.icon, this.route);
+}
+
+class _RecentActivityCard extends StatefulWidget {
+  const _RecentActivityCard();
+
+  @override
+  State<_RecentActivityCard> createState() => _RecentActivityCardState();
+}
+
+class _RecentActivityCardState extends State<_RecentActivityCard> {
+  final List<_ActivityFeedItem> _items = [];
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subs =
+      [];
+
+  @override
+  void initState() {
+    super.initState();
+    _listenCollection(
+      'leave_requests',
+      'Leave Request',
+      Icons.flight_takeoff_rounded,
+      PsgColors.error,
+      titleField: 'reason',
+    );
+    _listenCollection(
+      'complaints',
+      'Complaint Filed',
+      Icons.report_rounded,
+      const Color(0xFFB45309),
+      titleField: 'title',
+    );
+    _listenCollection(
+      'notices',
+      'Notice Posted',
+      Icons.campaign_rounded,
+      PsgColors.primary,
+      titleField: 'title',
+    );
+    _listenCollection(
+      'mess_applications',
+      'Mess Application',
+      Icons.restaurant_rounded,
+      PsgColors.secondary,
+      titleField: 'studentName',
     );
   }
 
-  Widget _activityCard() {
-    final items = [
-      _ActivityItem(
-        'Room Allocation',
-        'Assigned Rahul S. to Room 304 (Block A)',
-        PsgColors.primary,
-      ),
-      _ActivityItem(
-        'Menu Published',
-        'Weekly menu for Oct 22-28 posted',
-        PsgColors.secondary,
-      ),
-      _ActivityItem(
-        'New Complaint',
-        'Room 112: Water leakage reported',
-        PsgColors.error,
-      ),
-    ];
+  void _listenCollection(
+    String col,
+    String type,
+    IconData icon,
+    Color color, {
+    required String titleField,
+  }) {
+    final sub = FirebaseFirestore.instance
+        .collection(col)
+        .orderBy('createdAt', descending: true)
+        .limit(3)
+        .snapshots()
+        .listen((snap) {
+      _items.removeWhere((i) => i.collection == col);
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final ts = data['createdAt'] as Timestamp?;
+        if (ts == null) continue;
+        _items.add(
+          _ActivityFeedItem(
+            collection: col,
+            type: type,
+            title: data[titleField]?.toString() ?? type,
+            createdAt: ts.toDate(),
+            icon: icon,
+            color: color,
+          ),
+        );
+      }
+      _items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (mounted) setState(() {});
+    });
+    _subs.add(sub);
+  }
 
+  @override
+  void dispose() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top5 = _items.take(5).toList();
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.history_rounded,
-                color: PsgColors.primary,
-                size: 20,
-              ),
+              const Icon(Icons.history_rounded,
+                  color: PsgColors.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Recent Activity',
@@ -318,68 +427,100 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ],
           ),
           const SizedBox(height: 20),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 18),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 4,
-                    height: 40,
-                    margin: const EdgeInsets.only(right: 14, top: 3),
-                    decoration: BoxDecoration(
-                      color: item.color.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(2),
+          if (top5.isEmpty)
+            Center(
+              child: Text(
+                'No recent activity',
+                style: PsgText.body(13, color: PsgColors.onSurfaceVariant),
+              ),
+            )
+          else
+            ...top5.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 40,
+                      margin: const EdgeInsets.only(right: 14, top: 3),
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          style: PsgText.label(13, color: PsgColors.onSurface),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          item.subtitle,
-                          style: PsgText.body(
-                            12,
-                            color: PsgColors.onSurfaceVariant,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(item.icon, size: 13, color: item.color),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  item.type,
+                                  style: PsgText.label(
+                                    13,
+                                    color: PsgColors.onSurface,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          Text(
+                            item.title,
+                            style: PsgText.body(
+                              12,
+                              color: PsgColors.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            _timeAgo(item.createdAt),
+                            style: PsgText.body(
+                              10,
+                              color: PsgColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
 }
 
-class _Action {
-  final String label;
-  final IconData icon;
-  final String route;
-  const _Action(this.label, this.icon, this.route);
-}
-
-class _Metric {
-  final String label;
-  final IconData icon;
-  final String value;
-  final Color color;
-  const _Metric(this.label, this.icon, this.value, this.color);
-}
-
-class _ActivityItem {
+class _ActivityFeedItem {
+  final String collection;
+  final String type;
   final String title;
-  final String subtitle;
+  final DateTime createdAt;
+  final IconData icon;
   final Color color;
-  const _ActivityItem(this.title, this.subtitle, this.color);
+
+  const _ActivityFeedItem({
+    required this.collection,
+    required this.type,
+    required this.title,
+    required this.createdAt,
+    required this.icon,
+    required this.color,
+  });
 }

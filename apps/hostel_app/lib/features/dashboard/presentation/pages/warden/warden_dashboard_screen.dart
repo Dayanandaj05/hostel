@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../../app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
@@ -37,10 +38,10 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
       parent: _entryController,
       curve: Curves.easeOut,
     );
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
-        );
+    _slideAnim =
+        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+    );
     _entryController.forward();
   }
 
@@ -130,62 +131,106 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
         ),
         const SizedBox(height: 14),
 
-        _buildMockLeavesSection(),
+        _buildRecentLeavesSection(),
       ],
     );
   }
 
-  Widget _buildMockLeavesSection() {
-    // Mock sample leave requests
-    final sampleLeaves = [
-      _MockLeave('Rajesh Kumar', 'Oct 22', 'Oct 25', 4, 'Home visit'),
-      _MockLeave('Priya Sharma', 'Oct 24', 'Oct 26', 3, 'Medical emergency'),
-      _MockLeave('Arun Singh', 'Oct 25', 'Oct 27', 3, 'Family event'),
-    ];
-
-    if (sampleLeaves.isEmpty) {
-      return GlassCard(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline_rounded,
-              size: 48,
-              color: PsgColors.green.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'All caught up!',
-              style: PsgText.headline(
-                16,
-                color: PsgColors.onSurfaceVariant,
-                weight: FontWeight.w700,
+  Widget _buildRecentLeavesSection() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('leave_requests')
+          .orderBy('createdAt', descending: true)
+          .limit(3)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: PsgColors.primary,
               ),
             ),
-            Text(
-              'No pending leave requests.',
-              style: PsgText.body(13, color: PsgColors.onSurfaceVariant),
-            ),
-          ],
-        ),
-      );
-    }
+          );
+        }
 
-    return Column(
-      children: List.generate(sampleLeaves.length, (i) {
-        final leave = sampleLeaves[i];
-        return StaggeredEntry(
-          index: i + 3,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _leaveCard(leave),
-          ),
+        if (snap.hasError) {
+          return GlassCard(
+            child: Center(
+              child: Text(
+                'Unable to load recent requests.',
+                style: PsgText.body(13, color: PsgColors.onSurfaceVariant),
+              ),
+            ),
+          );
+        }
+
+        final docs = snap.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return GlassCard(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: 48,
+                  color: PsgColors.green.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'All caught up!',
+                  style: PsgText.headline(
+                    16,
+                    color: PsgColors.onSurfaceVariant,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'No leave requests found.',
+                  style: PsgText.body(13, color: PsgColors.onSurfaceVariant),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: List.generate(docs.length, (i) {
+            final leave = docs[i].data() as Map<String, dynamic>;
+            return StaggeredEntry(
+              index: i + 3,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _leaveCard(leave),
+              ),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 
-  Widget _leaveCard(_MockLeave leave) {
+  Widget _leaveCard(Map<String, dynamic> leave) {
+    final userId = leave['userId']?.toString() ?? 'Student';
+    final reason = leave['reason']?.toString() ?? 'Leave Request';
+    final start = (leave['startDate'] ?? leave['fromDate']) as Timestamp?;
+    final end = (leave['endDate'] ?? leave['toDate']) as Timestamp?;
+    final startDate = start?.toDate();
+    final endDate = end?.toDate();
+
+    final from = startDate != null
+        ? '${startDate.day}/${startDate.month}/${startDate.year % 100}'
+        : '--';
+    final to = endDate != null
+        ? '${endDate.day}/${endDate.month}/${endDate.year % 100}'
+        : '--';
+    final days = (startDate != null && endDate != null)
+        ? endDate.difference(startDate).inDays + 1
+        : 0;
+
     return GlassCard(
       borderRadius: 18,
       padding: const EdgeInsets.all(18),
@@ -194,14 +239,14 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
         children: [
           Row(
             children: [
-              PsgAvatarInitials(name: leave.name, size: 46),
+              PsgAvatarInitials(name: userId, size: 46),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      leave.name,
+                      userId,
                       style: PsgText.headline(
                         15,
                         weight: FontWeight.w800,
@@ -209,7 +254,7 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
                       ),
                     ),
                     Text(
-                      leave.reason,
+                      reason,
                       style: PsgText.body(
                         12,
                         color: PsgColors.onSurfaceVariant,
@@ -231,7 +276,7 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
               ),
               const SizedBox(width: 6),
               Text(
-                '${leave.from} – ${leave.to}  (${leave.days} days)',
+                '$from – $to  (${days < 0 ? 0 : days} days)',
                 style: PsgText.label(
                   12,
                   color: PsgColors.secondary,
@@ -246,13 +291,13 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
             children: [
               _actionBtn(
                 label: 'Reject',
-                onTap: () => _showAction('Leave request rejected'),
+                onTap: () => context.go(AppRoutes.wardenLeaveRequests),
                 isOutlined: true,
               ),
               const SizedBox(width: 10),
               _actionBtn(
                 label: 'Approve',
-                onTap: () => _showAction('Leave request approved'),
+                onTap: () => context.go(AppRoutes.wardenLeaveRequests),
                 isOutlined: false,
               ),
             ],
@@ -305,45 +350,83 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
     );
   }
 
-  void _showAction(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
   Widget _summaryRow() {
     return Row(
       children: [
         Expanded(
-          child: _metricCard(
-            'Pending Leaves',
-            Icons.departure_board_rounded,
-            count: '5',
-            tagLabel: 'Review',
-            tagColor: PsgColors.error,
-            tagBg: const Color(0xFFFFDAD6),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('leave_requests')
+                .where('status', isEqualTo: 'pending')
+                .snapshots(),
+            builder: (_, snap) {
+              final count = snap.data?.docs.length ?? 0;
+              final countText = snap.hasError ? '--' : '$count';
+              return _metricCard(
+                'Pending Leaves',
+                Icons.departure_board_rounded,
+                count: countText,
+                isLoading: snap.connectionState == ConnectionState.waiting,
+                tagLabel: count > 0 ? 'Review' : 'Clear',
+                tagColor: count > 0 ? PsgColors.error : Colors.green,
+                tagBg: count > 0
+                    ? const Color(0xFFFFDAD6)
+                    : const Color(0xFFDCFCE7),
+              );
+            },
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: _metricCard(
-            'Mess Requests',
-            Icons.restaurant_rounded,
-            count: '3',
-            tagLabel: 'Pending',
-            tagColor: PsgColors.secondary,
-            tagBg: const Color(0xFFE0EEFF),
-            iconColor: PsgColors.secondary,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('mess_applications')
+                .where('status', isEqualTo: 'pending')
+                .snapshots(),
+            builder: (_, snap) {
+              final count = snap.data?.docs.length ?? 0;
+              final countText = snap.hasError ? '--' : '$count';
+              return _metricCard(
+                'Mess Requests',
+                Icons.restaurant_rounded,
+                count: countText,
+                isLoading: snap.connectionState == ConnectionState.waiting,
+                tagLabel: count > 0 ? 'Pending' : 'Clear',
+                tagColor: PsgColors.secondary,
+                tagBg: const Color(0xFFE0EEFF),
+                iconColor: PsgColors.secondary,
+              );
+            },
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: _metricCard(
-            'Complaints',
-            Icons.report_rounded,
-            count: '8',
-            tagLabel: 'Priority',
-            tagColor: Colors.white,
-            tagBg: PsgColors.error,
-            iconColor: PsgColors.error,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('complaints').where(
+                'status',
+                whereIn: const ['pending', 'in_progress']).snapshots(),
+            builder: (_, snap) {
+              final count = snap.data?.docs.length ?? 0;
+              final countText = snap.hasError ? '--' : '$count';
+              return _metricCard(
+                'Complaints',
+                Icons.report_rounded,
+                count: countText,
+                isLoading: snap.connectionState == ConnectionState.waiting,
+                tagLabel: count > 5
+                    ? 'Priority'
+                    : count > 0
+                        ? 'Active'
+                        : 'Clear',
+                tagColor: Colors.white,
+                tagBg: count > 5
+                    ? PsgColors.error
+                    : count > 0
+                        ? Colors.orange
+                        : Colors.green,
+                iconColor: PsgColors.error,
+              );
+            },
           ),
         ),
       ],
@@ -354,6 +437,7 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
     String label,
     IconData icon, {
     required String count,
+    bool isLoading = false,
     required String tagLabel,
     required Color tagColor,
     required Color tagBg,
@@ -391,7 +475,17 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
             ],
           ),
           const SizedBox(height: 8),
-          Text(count, style: PsgText.headline(32, color: PsgColors.primary)),
+          if (isLoading)
+            const SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: PsgColors.primary,
+              ),
+            )
+          else
+            Text(count, style: PsgText.headline(32, color: PsgColors.primary)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -408,13 +502,4 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
       ),
     );
   }
-}
-
-class _MockLeave {
-  final String name;
-  final String from;
-  final String to;
-  final int days;
-  final String reason;
-  const _MockLeave(this.name, this.from, this.to, this.days, this.reason);
 }

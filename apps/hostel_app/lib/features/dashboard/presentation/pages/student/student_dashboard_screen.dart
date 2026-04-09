@@ -42,10 +42,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       parent: _entryController,
       curve: Curves.easeOut,
     );
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
-        );
+    _slideAnim =
+        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+    );
     _entryController.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -73,15 +73,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     final activeBookedTokens = tokenController.myTokens
         .where((t) => t.status == FoodTokenStatus.active)
         .length;
-    final monthMessBill = tokenController.myTokens
-        .where((t) {
-          final d = t.scheduledDate;
-          if (d == null) return false;
-          return d.year == now.year &&
-              d.month == now.month &&
-              t.status != FoodTokenStatus.cancelled;
-        })
-        .fold<double>(0, (sum, t) => sum + (t.totalPrice ?? t.itemPrice ?? 0));
+    final totalTokens = tokenController.myTokens.length;
+    final monthMessBill = tokenController.myTokens.where((t) {
+      final d = t.scheduledDate;
+      if (d == null) return false;
+      return d.year == now.year &&
+          d.month == now.month &&
+          t.status != FoodTokenStatus.cancelled;
+    }).fold<double>(0, (sum, t) => sum + (t.totalPrice ?? t.itemPrice ?? 0));
 
     return MeshBackground(
       child: Scaffold(
@@ -114,7 +113,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           opacity: _fadeAnim,
           child: SlideTransition(
             position: _slideAnim,
-            child: _homeTab(profile, activeBookedTokens, monthMessBill),
+            child: _homeTab(
+              profile,
+              activeBookedTokens,
+              totalTokens,
+              monthMessBill,
+            ),
           ),
         ),
       ),
@@ -124,6 +128,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   Widget _homeTab(
     StudentProfileProvider profile,
     int activeBookedTokens,
+    int totalTokens,
     double monthMessBill,
   ) {
     return ListView(
@@ -268,7 +273,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: _statCard('3', 'Tokens', isGreen: false)),
+              Expanded(
+                child: _statCard('$totalTokens', 'Tokens', isGreen: false),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: _statCard(
@@ -322,55 +329,51 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     ];
 
     return Column(
-      children: modules
-          .asMap()
-          .entries
-          .map((entry) {
-            final i = entry.key;
-            final m = entry.value;
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: i == modules.length - 1 ? 0 : 10,
+      children: modules.asMap().entries.map((entry) {
+        final i = entry.key;
+        final m = entry.value;
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: i == modules.length - 1 ? 0 : 10,
+          ),
+          child: StaggeredEntry(
+            index: i + 4,
+            child: GlassCard(
+              borderRadius: 14,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
               ),
-              child: StaggeredEntry(
-                index: i + 4,
-                child: GlassCard(
-                  borderRadius: 14,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
+              onTap: () => context.go(m.route),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: m.fg.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(m.icon, color: m.fg, size: 20),
                   ),
-                  onTap: () => context.go(m.route),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: m.fg.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(m.icon, color: m.fg, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          m.label,
-                          style: PsgText.label(14, color: PsgColors.onSurface),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: PsgColors.onSurfaceVariant,
-                        size: 20,
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      m.label,
+                      style: PsgText.label(14, color: PsgColors.onSurface),
+                    ),
                   ),
-                ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: PsgColors.onSurfaceVariant,
+                    size: 20,
+                  ),
+                ],
               ),
-            );
-          })
-          .toList(growable: false),
+            ),
+          ),
+        );
+      }).toList(growable: false),
     );
   }
 

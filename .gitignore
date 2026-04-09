@@ -1,2 +1,8 @@
 Happ-output.txt
 Happ-output.md
+
+# Firebase secrets (injected via CI)
+apps/hostel_app/android/app/google-services.json
+apps/hostel_app/ios/Runner/GoogleService-Info.plist
+apps/hostel_app/macos/Runner/GoogleService-Info.plist
+apps/hostel_app/lib/firebase_options.dart
