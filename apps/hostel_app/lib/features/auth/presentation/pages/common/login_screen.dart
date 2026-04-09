@@ -224,13 +224,10 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
   Future<void> _signIn(AuthProviderController auth) async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _error = null);
-    final success = await auth.signInWithEmailAndPassword(
+    await auth.signInWithEmailAndPassword(
       email: _toEmail(_rollController.text),
       password: _passwordController.text,
     );
-    if (!success && mounted) {
-      setState(() => _error = auth.errorMessage ?? 'Sign-in failed.');
-    }
   }
 
   Future<void> _forgotPassword(AuthProviderController auth) async {
@@ -272,10 +269,10 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
                     TextFormField(
                       controller: _rollController,
                       enabled: !auth.isLoading,
-                      textCapitalization: TextCapitalization.characters,
+                      textCapitalization: TextCapitalization.none,
                       decoration: InputDecoration(
                         labelText: 'Roll Number',
-                        hintText: 'e.g. 25MX308',
+                        hintText: 'e.g. 25mx304',
                         prefixIcon: const Icon(Icons.badge_outlined),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -308,7 +305,8 @@ class _StudentLoginFormState extends State<_StudentLoginForm> {
                       ),
                     ),
                     _signInButton(auth, () => _signIn(auth)),
-                    if (_error != null) _errorBox(_error!),
+                    if (_error != null || auth.errorMessage != null) 
+                      _errorBox(_error ?? auth.errorMessage!),
                   ],
                 ),
               ),
@@ -382,16 +380,10 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
   Future<void> _signIn(AuthProviderController auth) async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _error = null);
-    final success = await auth.signInWithEmailAndPassword(
+    await auth.signInWithEmailAndPassword(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
-    if (!success && mounted) {
-      // Extra guard: if the account exists but has a different role,
-      // show a clear message instead of a generic error.
-      final msg = auth.errorMessage ?? 'Sign-in failed.';
-      setState(() => _error = msg);
-    }
   }
 
   Future<void> _forgotPassword(AuthProviderController auth) async {
@@ -478,7 +470,7 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
                       decoration: InputDecoration(
                         labelText: 'Email Address',
                         hintText: _isAdmin
-                            ? 'e.g. admin@psgtech.ac.in'
+                            ? 'e.g. admin@psgtech.hostel'
                             : 'e.g. warden@psgtech.ac.in',
                         prefixIcon: const Icon(Icons.email_outlined),
                         border: OutlineInputBorder(
@@ -516,7 +508,8 @@ class _StaffLoginFormState extends State<_StaffLoginForm> {
                       () => _signIn(auth),
                       label: 'Sign In as $_roleLabel',
                     ),
-                    if (_error != null) _errorBox(_error!),
+                    if (_error != null || auth.errorMessage != null) 
+                      _errorBox(_error ?? auth.errorMessage!),
                   ],
                 ),
               ),

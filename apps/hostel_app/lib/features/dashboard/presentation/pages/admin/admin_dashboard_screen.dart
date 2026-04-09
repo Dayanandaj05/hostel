@@ -59,6 +59,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       AppRoutes.adminRoles,
     ),
     _Action('Allocate Rooms', Icons.meeting_room_rounded, AppRoutes.adminRooms),
+    _Action('Token Inventory', Icons.inventory_2_rounded, AppRoutes.adminFoodTokens),
     _Action('View Data', Icons.analytics_rounded, AppRoutes.adminDashboard),
     _Action('Post Notice', Icons.campaign_rounded, AppRoutes.adminNotices),
     _Action('Hostel Day', Icons.celebration_rounded, AppRoutes.adminHostelDay),

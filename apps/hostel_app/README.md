@@ -22,7 +22,10 @@ samples, guidance on mobile development, and a full API reference.
 
 1. Ensure native Firebase config files are present through CI secret injection.
 2. Build mobile artifacts:
+   flutter pub get
+   flutter analyze (must pass clean)
    flutter build apk --release
+   flutter build ios --release
    flutter build ios --release
 
 ### 2) Web build readiness

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/tshirt_order_model.dart';
-import '../../data/repositories/mock_tshirt_repository.dart';
+import '../../data/repositories/firestore_tshirt_repository.dart';
 
 class TShirtController extends ChangeNotifier {
   TShirtController(this._repository);
-  final MockTShirtRepository _repository;
+  final FirestoreTShirtRepository _repository;
 
   bool _isSubmitting = false;
   bool _isLoading = false;

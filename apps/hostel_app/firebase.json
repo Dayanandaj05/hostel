@@ -1,7 +1,4 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
   "flutter": {
     "platforms": {
       "android": {
@@ -11,14 +8,47 @@
           "fileOutput": "android/app/google-services.json"
         }
       },
+      "ios": {
+        "default": {
+          "projectId": "psg-hostel-app",
+          "appId": "1:251911023605:ios:87720860a9e5a4252bcebc",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "psg-hostel-app",
+          "appId": "1:251911023605:ios:87720860a9e5a4252bcebc",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
       "dart": {
         "lib/firebase_options.dart": {
           "projectId": "psg-hostel-app",
           "configurations": {
+            "android": "1:251911023605:android:62c9213a8ede85ed2bcebc",
+            "ios": "1:251911023605:ios:87720860a9e5a4252bcebc",
+            "macos": "1:251911023605:ios:87720860a9e5a4252bcebc",
             "web": "1:251911023605:web:ec4ec02252da49802bcebc"
           }
         }
       }
     }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

@@ -1,41 +1,52 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
-import '../../../presentation/controllers/food_token_controller.dart';
-import '../../../../../app/app_routes.dart';
+
+import 'package:hostel_app/app/app_routes.dart';
+import 'package:hostel_app/core/design/psg_design_system.dart';
+import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
+import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
 
 class BookTokenScreen extends StatefulWidget {
   const BookTokenScreen({super.key});
+
   @override
   State<BookTokenScreen> createState() => _BookTokenScreenState();
 }
 
 class _BookTokenScreenState extends State<BookTokenScreen> {
+  final _scrollController = ScrollController();
+  double _scrollOffset = 0;
+
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   String _selectedMeal = 'Lunch';
-  final Map<String, int> _cart = {};
+  final Map<String, int> _quantities = {};
 
   static const _meals = ['Breakfast', 'Lunch', 'Dinner'];
 
-  // These are add-on tokens (extras beyond the base monthly mess meal)
-  static const _menuItems = [
-    _MenuItem('Gobi Chilli', 40.0, Icons.local_dining_rounded),
-    _MenuItem('Chicken Gravy', 80.0, Icons.set_meal_rounded),
-    _MenuItem('Mushroom Manchurian', 60.0, Icons.eco_rounded),
-    _MenuItem('Omelette', 10.0, Icons.egg_alt_rounded),
-    _MenuItem('Boiled Egg', 10.0, Icons.egg_rounded),
-    _MenuItem('Egg Gravy', 25.0, Icons.soup_kitchen_rounded),
-    _MenuItem('Special Thali', 70.0, Icons.rice_bowl_rounded),
-    _MenuItem('Curd Rice', 20.0, Icons.rice_bowl_rounded),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(
+      () => setState(() => _scrollOffset = _scrollController.offset),
+    );
+  }
 
-  double get _cartTotal => _cart.entries.fold(0, (sum, e) {
-        final item = _menuItems.firstWhere((m) => m.name == e.key);
-        return sum + item.price * e.value;
-      });
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-  int get _cartCount => _cart.values.fold(0, (sum, qty) => sum + qty);
+  Stream<QuerySnapshot<Map<String, dynamic>>> _menuStream() {
+    return FirebaseFirestore.instance
+        .collection('mess_menu')
+        .where('mealSlot', isEqualTo: _selectedMeal)
+        .where('isAvailable', isEqualTo: true)
+        .snapshots();
+  }
 
   Future<void> _selectDate() async {
     final picked = await showDatePicker(
@@ -44,41 +55,38 @@ class _BookTokenScreenState extends State<BookTokenScreen> {
       firstDate: DateTime.now().add(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 30)),
     );
-    if (picked != null) setState(() => _selectedDate = picked);
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
   }
 
-  Future<void> _checkout(FoodTokenController controller) async {
-    if (_cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one item to your cart.')),
-      );
-      return;
-    }
+  Future<void> _bookItem(
+    FoodTokenController controller,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final uid = AuthProviderController.of(context).user?.uid;
+    if (uid == null) return;
 
-    final userId = AuthProviderController.of(context).user?.uid;
-    if (userId == null) return;
+    final data = doc.data();
+    final qty = _quantities[doc.id] ?? 1;
+    if (qty <= 0) return;
 
-    bool allSuccess = true;
-    for (final entry in _cart.entries) {
-      final item = _menuItems.firstWhere((m) => m.name == entry.key);
-      final success = await controller.bookToken(
-        userId: userId,
-        itemName: item.name,
-        itemPrice: item.price,
-        quantity: entry.value,
-        mealSlot: _selectedMeal,
-        scheduledDate: _selectedDate,
-      );
-      if (!success) { allSuccess = false; break; }
-    }
+    final success = await controller.bookToken(
+      userId: uid,
+      itemName: data['itemName'] as String? ?? 'Unknown Item',
+      itemPrice: ((data['price'] as num?) ?? 0).toDouble(),
+      quantity: qty,
+      mealSlot: _selectedMeal,
+      scheduledDate: _selectedDate,
+    );
 
     if (!mounted) return;
-    if (allSuccess) {
-      setState(() => _cart.clear());
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Tokens booked successfully!'),
-          backgroundColor: Color(0xFF009688),
+          content: Text('Token booked successfully!'),
+          backgroundColor: PsgColors.green,
         ),
       );
       context.go(AppRoutes.studentMyTokens);
@@ -91,226 +99,343 @@ class _BookTokenScreenState extends State<BookTokenScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0D2137),
-        foregroundColor: Colors.white,
-        title: const Text('Book Food Token'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => context.go(AppRoutes.studentHome),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.receipt_long_rounded),
-            tooltip: 'My Tokens',
-            onPressed: () => context.go(AppRoutes.studentMyTokens),
+    return MeshBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
+        appBar: PsgGlassAppBar(
+          scrollOffset: _scrollOffset,
+          title: 'Book Food Token',
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_rounded,
+              color: PsgColors.primary,
+              size: 20,
+            ),
+            onPressed: () => context.canPop()
+                ? context.pop()
+                : context.go(AppRoutes.studentHome),
           ),
-        ],
-      ),
-      body: Consumer<FoodTokenController>(
-        builder: (context, controller, _) {
-          return Column(
-            children: [
-              // Date & meal selector
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: _selectDate,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF009688)),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                                style: const TextStyle(fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedMeal,
-                        isDense: true,
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          prefixIcon: const Icon(Icons.restaurant_rounded, color: Color(0xFF009688), size: 18),
-                        ),
-                        items: _meals.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                        onChanged: (v) => setState(() => _selectedMeal = v!),
-                      ),
-                    ),
-                  ],
-                ),
+          actions: [
+            IconButton(
+              icon: const Icon(
+                Icons.receipt_long_rounded,
+                color: PsgColors.primary,
               ),
-              // Menu items
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    // Info banner
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0D2137).withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF0D2137).withValues(alpha: 0.15)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline_rounded, color: Color(0xFF0D2137), size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'These are add-on food tokens for extras beyond your monthly mess meal. '
-                              'Your base ${_selectedMeal.toLowerCase()} meal is included in your mess plan.',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Menu items
-                    ..._menuItems.asMap().entries.map((entry) {
-                      final item = entry.value;
-                      final qty = _cart[item.name] ?? 0;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: qty > 0 ? const Color(0xFF009688) : Colors.grey.shade200,
-                            width: qty > 0 ? 1.5 : 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44, height: 44,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF009688).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(item.icon, color: const Color(0xFF009688), size: 22),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                    Text('₹${item.price.toInt()} per token',
-                                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                                  ],
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  if (qty > 0) ...[
-                                    _circleBtn(Icons.remove, () => setState(() {
-                                      if (qty == 1) {
-                                        _cart.remove(item.name);
-                                      } else {
-                                        _cart[item.name] = qty - 1;
-                                      }
-                                    })),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                                      child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    ),
-                                  ],
-                                  _circleBtn(Icons.add, () => setState(() => _cart[item.name] = qty + 1), primary: true),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+              tooltip: 'My Tokens',
+              onPressed: () => context.go(AppRoutes.studentMyTokens),
+            ),
+          ],
+        ),
+        body: Consumer<FoodTokenController>(
+          builder: (context, controller, _) {
+            return ListView(
+              controller: _scrollController,
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 88,
+                bottom: 32,
+                left: 16,
+                right: 16,
               ),
-              // Cart summary + checkout
-              if (_cartCount > 0)
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                GlassCard(
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('$_cartCount item${_cartCount > 1 ? 's' : ''}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                          Text('₹${_cartTotal.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0D2137))),
-                        ],
-                      ),
-                      const Spacer(),
-                      FilledButton(
-                        onPressed: controller.isSubmitting ? null : () => _checkout(controller),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D2137),
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      Expanded(
+                        child: InkWell(
+                          onTap: _selectDate,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 18,
+                                  color: PsgColors.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  DateFormat('dd MMM yyyy')
+                                      .format(_selectedDate),
+                                  style: PsgText.body(
+                                    13,
+                                    color: PsgColors.onSurface,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        child: controller.isSubmitting
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Book Tokens', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedMeal,
+                          isDense: true,
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.35),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          style: PsgText.body(
+                            13,
+                            color: PsgColors.onSurface,
+                            weight: FontWeight.w600,
+                          ),
+                          items: _meals
+                              .map((m) =>
+                                  DropdownMenuItem(value: m, child: Text(m)))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() {
+                              _selectedMeal = v;
+                              _quantities.clear();
+                            });
+                          },
+                        ),
                       ),
                     ],
                   ),
                 ),
-            ],
-          );
-        },
+                const SizedBox(height: 16),
+                const PsgSectionHeader(title: 'Available Menu Items'),
+                const SizedBox(height: 12),
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _menuStream(),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snap.hasError) {
+                      return Center(
+                        child: Text(
+                          'Failed to load menu items.',
+                          style: PsgText.body(14, color: PsgColors.error),
+                        ),
+                      );
+                    }
+
+                    final docs = snap.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            'No items available for $_selectedMeal.',
+                            style: PsgText.body(
+                              14,
+                              color: PsgColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: docs.map((doc) {
+                        final data = doc.data();
+                        final itemName =
+                            data['itemName'] as String? ?? 'Menu Item';
+                        final price = ((data['price'] as num?) ?? 0).toDouble();
+                        final isVeg = (data['isVeg'] as bool?) ?? true;
+                        final maxQty = ((data['maxQty'] as num?) ?? 5).toInt();
+                        final emoji = (data['emoji'] as String?)?.trim();
+                        final qty = _quantities[doc.id] ?? 1;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: GlassCard(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 42,
+                                      height: 42,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: PsgColors.primary
+                                            .withValues(alpha: 0.10),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        (emoji != null && emoji.isNotEmpty)
+                                            ? emoji
+                                            : '🍽️',
+                                        style: const TextStyle(fontSize: 20),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            itemName,
+                                            style: PsgText.label(
+                                              14,
+                                              color: PsgColors.onSurface,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '₹${price.toStringAsFixed(price == price.toInt() ? 0 : 2)}',
+                                            style: PsgText.body(
+                                              12,
+                                              color: PsgColors.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: isVeg
+                                                ? Colors.green
+                                                : Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          isVeg ? 'Veg' : 'Non-Veg',
+                                          style: PsgText.body(
+                                            11,
+                                            color: PsgColors.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    _qtyBtn(
+                                      icon: Icons.remove,
+                                      onTap: () {
+                                        if (qty <= 1) return;
+                                        setState(() =>
+                                            _quantities[doc.id] = qty - 1);
+                                      },
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      child: Text(
+                                        '$qty',
+                                        style: PsgText.label(
+                                          14,
+                                          color: PsgColors.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    _qtyBtn(
+                                      icon: Icons.add,
+                                      onTap: () {
+                                        if (qty >= maxQty) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Maximum quantity is $maxQty.',
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+                                        setState(() =>
+                                            _quantities[doc.id] = qty + 1);
+                                      },
+                                    ),
+                                    const Spacer(),
+                                    SizedBox(
+                                      height: 38,
+                                      child: FilledButton(
+                                        onPressed: controller.isSubmitting
+                                            ? null
+                                            : () => _bookItem(controller, doc),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: PsgColors.primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                          ),
+                                        ),
+                                        child: controller.isSubmitting
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : Text(
+                                                'Book',
+                                                style: PsgText.label(
+                                                  11,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _circleBtn(IconData icon, VoidCallback onTap, {bool primary = false}) {
+  Widget _qtyBtn({required IconData icon, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(999),
       child: Container(
-        width: 30, height: 30,
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.45),
           shape: BoxShape.circle,
-          color: primary ? const Color(0xFF0D2137) : Colors.grey.shade200,
         ),
-        child: Icon(icon, size: 16, color: primary ? Colors.white : const Color(0xFF0D2137)),
+        child: Icon(icon, size: 16, color: PsgColors.primary),
       ),
     );
   }
-}
-
-class _MenuItem {
-  final String name;
-  final double price;
-  final IconData icon;
-  const _MenuItem(this.name, this.price, this.icon);
 }

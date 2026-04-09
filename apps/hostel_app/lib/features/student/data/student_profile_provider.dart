@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:hostel_app/services/mock/mock_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentProfileProvider extends ChangeNotifier {
   StudentProfileProvider();
@@ -21,9 +21,18 @@ class StudentProfileProvider extends ChangeNotifier {
     }
 
     _subscription?.cancel();
-    _subscription = MockService.watchStudentProfile(uid).listen(
-      (data) {
-        profileData = data;
+    _subscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen(
+      (doc) {
+        if (doc.exists) {
+          profileData = doc.data() as Map<String, dynamic>;
+        } else {
+          profileData = null;
+          error = 'Profile not found';
+        }
         isLoading = false;
         notifyListeners();
       },
@@ -38,6 +47,7 @@ class StudentProfileProvider extends ChangeNotifier {
   void stopWatching() {
     _subscription?.cancel();
     _subscription = null;
+    _currentUid = null;
   }
 
   String get displayName => profileData?['name'] as String? ?? 'Student';
@@ -80,21 +90,22 @@ class StudentProfileProvider extends ChangeNotifier {
     String? bloodGroup,
   }) async {
     if (profileData == null) return;
-
-    final uid = MockService.currentUid;
-    if (uid == null) return;
+    if (_currentUid == null) return;
 
     final updates = <String, dynamic>{
       if (primaryMobile != null) 'primaryMobile': primaryMobile,
       if (secondaryMobile != null) 'secondaryMobile': secondaryMobile,
       if (address != null) 'address': address,
       if (bloodGroup != null) 'bloodGroup': bloodGroup,
-      'updatedAt': DateTime.now(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
     if (updates.isEmpty) return;
 
-    await MockService.updateStudentProfile(uid, updates);
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUid)
+        .update(updates);
   }
 
   @override

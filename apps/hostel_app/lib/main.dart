@@ -2,23 +2,27 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:hostel_app/app/app.dart';
-import 'package:hostel_app/core/auth/auth_session_provider.dart';
-import 'package:hostel_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:hostel_app/services/storage/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hostel_app/services/auth/auth_service.dart';
 import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
-import 'package:hostel_app/features/complaints/data/repositories/mock_complaint_repository.dart';
+import 'package:hostel_app/features/complaints/data/repositories/firestore_complaint_repository.dart';
 import 'package:hostel_app/features/complaints/domain/repositories/complaint_repository.dart';
-import 'package:hostel_app/features/dayentry/data/repositories/mock_day_entry_repository.dart';
+import 'package:hostel_app/features/dayentry/data/repositories/firestore_day_entry_repository.dart';
 import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_controller.dart';
-import 'package:hostel_app/features/leave/data/repositories/mock_leave_request_repository.dart';
+import 'package:hostel_app/features/leave/data/repositories/firestore_leave_request_repository.dart';
 import 'package:hostel_app/features/leave/domain/repositories/leave_request_repository.dart';
 import 'package:hostel_app/features/leave/presentation/controllers/leave_request_controller.dart';
 import 'package:hostel_app/features/student/data/student_profile_provider.dart';
-import 'package:hostel_app/features/tokens/data/repositories/mock_food_token_repository.dart';
+import 'package:hostel_app/features/tokens/data/repositories/firestore_food_token_repository.dart';
 import 'package:hostel_app/features/tokens/domain/repositories/food_token_repository.dart';
 import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
-import 'package:hostel_app/features/tshirt/data/repositories/mock_tshirt_repository.dart';
+import 'package:hostel_app/features/tshirt/data/repositories/firestore_tshirt_repository.dart';
+import 'package:hostel_app/features/tokens/data/repositories/firestore_food_token_inventory_repository.dart';
+import 'package:hostel_app/features/tokens/presentation/controllers/food_token_inventory_controller.dart';
 import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_controller.dart';
 import 'package:hostel_app/features/notifications/data/notification_provider.dart';
 
@@ -80,28 +84,20 @@ class HostelManagementBootstrap extends StatefulWidget {
 }
 
 class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
-  late final AuthSessionProvider _authSessionProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _authSessionProvider = AuthSessionProvider()..initialize();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
-    final leaveRepository = MockLeaveRequestRepository();
-    final foodTokenRepository = MockFoodTokenRepository();
-    final tshirtRepository = MockTShirtRepository();
-    final dayEntryRepository = MockDayEntryRepository();
-    final complaintRepository = MockComplaintRepository();
+    final authService = AuthService(FirebaseAuth.instance);
+    final firestoreService = FirestoreService(FirebaseFirestore.instance);
+    final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
+    final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
+    final foodTokenInventoryRepository =
+        FirestoreFoodTokenInventoryRepository(firestoreService);
+    final tshirtRepository = FirestoreTShirtRepository(firestoreService);
+    final dayEntryRepository = FirestoreDayEntryRepository(firestoreService);
+    final complaintRepository = FirestoreComplaintRepository(firestoreService);
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthSessionProvider>.value(
-          value: _authSessionProvider,
-        ),
         Provider<AuthService>.value(value: authService),
         Provider<LeaveRequestRepository>.value(value: leaveRepository),
         Provider<FoodTokenRepository>.value(value: foodTokenRepository),
@@ -117,6 +113,10 @@ class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
         ),
         ChangeNotifierProvider<FoodTokenController>(
           create: (_) => FoodTokenController(foodTokenRepository),
+        ),
+        ChangeNotifierProvider<FoodTokenInventoryController>(
+          create: (_) =>
+              FoodTokenInventoryController(foodTokenInventoryRepository),
         ),
         ChangeNotifierProvider<TShirtController>(
           create: (_) => TShirtController(tshirtRepository),

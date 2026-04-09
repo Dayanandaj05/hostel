@@ -4,8 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:hostel_app/features/leave/domain/entities/leave_request_model.dart';
-import 'package:hostel_app/services/mock/mock_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../../app/app_routes.dart';
 import '../../../../auth/presentation/controllers/auth_provider_controller.dart';
@@ -29,9 +28,8 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
   DateTime? _fromDate;
   DateTime? _toDate;
   String _reason = 'Home Visit';
-  final _descController = TextEditingController();
   bool _submitting = false;
-  Future<List<LeaveRequestModel>>? _historyFuture;
+  final _descController = TextEditingController();
 
   final _reasons = [
     'Home Visit',
@@ -54,21 +52,11 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
       parent: _entryController,
       curve: Curves.easeOut,
     );
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
-        );
+    _slideAnim =
+        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+    );
     _entryController.forward();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final uid = AuthProviderController.of(context).user?.uid;
-      if (uid != null) {
-        setState(() {
-          _historyFuture = MockService.watchMyLeaveRequests(uid).first;
-        });
-      }
-    });
   }
 
   @override
@@ -94,25 +82,23 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
 
     setState(() => _submitting = true);
     try {
-      await MockService.submitLeaveRequest(
-        LeaveRequestModel(
-          userId: uid,
-          startDate: _fromDate!,
-          endDate: _toDate!,
-          reason: _reason,
-          leaveType: _descController.text.trim(),
-          status: LeaveRequestStatus.pending,
-        ),
-      );
+      await FirebaseFirestore.instance.collection('leave_requests').add({
+        'userId': uid,
+        'startDate': Timestamp.fromDate(_fromDate!),
+        'endDate': Timestamp.fromDate(_toDate!),
+        'reason': _reason,
+        'leaveType': _descController.text.trim(),
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
       if (mounted) {
         _fromDate = null;
         _toDate = null;
         _descController.clear();
-        _historyFuture = MockService.watchMyLeaveRequests(uid).first;
         setState(() {});
         _snack('Leave application submitted!', isSuccess: true);
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) _snack('Submission failed. Try again.');
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -222,88 +208,110 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
                 ),
                 const SizedBox(height: 14),
 
-                if (uid.isNotEmpty)
-                  FutureBuilder<List<LeaveRequestModel>>(
-                    future: _historyFuture,
-                    builder: (ctx, snap) {
-                      if (snap.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snap.hasError) {
-                        return Center(
-                          child: Text(
-                            'Failed to load leave history.',
-                            style: PsgText.body(14, color: PsgColors.error),
-                          ),
-                        );
-                      }
-                      final docs = snap.data ?? const <LeaveRequestModel>[];
-                      if (docs.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'No leave history yet.',
-                            style: PsgText.body(
-                              14,
-                              color: PsgColors.onSurfaceVariant,
-                            ),
-                          ),
-                        );
-                      }
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: docs.length,
-                        itemBuilder: (ctx, i) {
-                          final item = docs[i];
-                          final reason = item.reason;
-                          final status = item.status.value;
-                          final from = item.startDate;
-                          final to = item.endDate;
+                StreamBuilder<QuerySnapshot>(
+                  stream: uid.isNotEmpty
+                      ? FirebaseFirestore.instance
+                          .collection('leave_requests')
+                          .where('userId', isEqualTo: uid)
+                          .snapshots()
+                      : const Stream.empty(),
+                  builder: (ctx, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snap.hasError) {
+                      return Center(
+                        child: Text(
+                          'Failed to load leave history.',
+                          style: PsgText.body(14, color: PsgColors.error),
+                        ),
+                      );
+                    }
+                    final docs = snap.data?.docs ?? [];
+                    final sorted = [...docs]..sort((a, b) {
+                        final aData = a.data() as Map<String, dynamic>;
+                        final bData = b.data() as Map<String, dynamic>;
+                        final aT =
+                            (aData['createdAt'] as Timestamp?)?.toDate() ??
+                                DateTime(2000);
+                        final bT =
+                            (bData['createdAt'] as Timestamp?)?.toDate() ??
+                                DateTime(2000);
+                        return bT.compareTo(aT);
+                      });
 
-                          return StaggeredEntry(
-                            index: i,
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: GlassCard(
-                                borderRadius: 16,
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
+                    if (sorted.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No leave requests yet.',
+                          style: PsgText.body(
+                            14,
+                            color: PsgColors.onSurfaceVariant,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: sorted.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final start =
+                            (data['startDate'] as Timestamp?)?.toDate();
+                        final end = (data['endDate'] as Timestamp?)?.toDate();
+                        if (start == null || end == null) {
+                          return const SizedBox.shrink();
+                        }
+
+                        final status = data['status'] as String? ?? 'pending';
+                        final reason = data['reason'] as String? ?? '';
+                        final desc = data['leaveType'] as String? ?? '';
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: GlassCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _statusIcon(status),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            reason,
-                                            style: PsgText.label(
-                                              14,
-                                              color: PsgColors.primary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '${DateFormat('dd MMM').format(from)} - ${DateFormat('dd MMM').format(to)}',
-                                            style: PsgText.body(
-                                              12,
-                                              color: PsgColors.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
+                                    Text(
+                                      reason,
+                                      style: PsgText.label(
+                                        14,
+                                        color: PsgColors.onSurface,
                                       ),
                                     ),
-                                    _statusChip(status),
+                                    _statusPill(status),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${DateFormat('dd MMM yy').format(start)} → ${DateFormat('dd MMM yy').format(end)}',
+                                  style: PsgText.body(
+                                    12,
+                                    color: PsgColors.onSurfaceVariant,
+                                  ),
+                                ),
+                                if (desc.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    desc,
+                                    style: PsgText.body(
+                                      12,
+                                      color: PsgColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -312,34 +320,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
     );
   }
 
-  Widget _statusIcon(String status) {
-    IconData icon;
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'approved':
-        icon = Icons.check_circle_rounded;
-        color = PsgColors.green;
-        break;
-      case 'rejected':
-        icon = Icons.cancel_rounded;
-        color = PsgColors.error;
-        break;
-      default:
-        icon = Icons.pending_actions_rounded;
-        color = PsgColors.primary;
-    }
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(icon, color: color, size: 22),
-    );
-  }
-
-  Widget _statusChip(String status) {
+  Widget _statusPill(String status) {
     Color color;
     switch (status.toLowerCase()) {
       case 'approved':
@@ -488,9 +469,8 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
                   fmt ?? 'Select date',
                   style: PsgText.body(
                     13,
-                    color: value != null
-                        ? PsgColors.onSurface
-                        : PsgColors.outline,
+                    color:
+                        value != null ? PsgColors.onSurface : PsgColors.outline,
                     weight: value != null ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),

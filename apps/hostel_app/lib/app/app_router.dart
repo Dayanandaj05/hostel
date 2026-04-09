@@ -19,8 +19,9 @@ import '../features/dashboard/presentation/pages/admin/admin_room_allocation_scr
 import '../features/dashboard/presentation/pages/admin/admin_statistics_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_user_management_screen.dart';
 import '../features/dashboard/presentation/pages/admin/admin_hostel_day_screen.dart';
+import '../features/dashboard/presentation/pages/admin/admin_food_token_inventory_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_dashboard_screen.dart';
-import '../features/mess/presentation/pages/student/book_token_screen.dart';
+import '../features/tokens/presentation/pages/student/book_token_screen.dart';
 import '../features/leave/presentation/pages/student/leave_request_screen.dart';
 import '../features/tshirt/presentation/pages/student/tshirt_screen.dart';
 import '../features/dayentry/presentation/pages/student/day_entry_screen.dart';
@@ -275,6 +276,11 @@ abstract class AppRouter {
               path: AppRoutes.adminHostelDay,
               pageBuilder: (context, state) =>
                   _buildPage(const AdminHostelDayScreen(), state),
+            ),
+            GoRoute(
+              path: AppRoutes.adminFoodTokens,
+              pageBuilder: (context, state) =>
+                  _buildPage(const AdminFoodTokenInventoryScreen(), state),
             ),
           ],
         ),

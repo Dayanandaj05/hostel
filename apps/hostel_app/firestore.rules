@@ -316,6 +316,12 @@ service cloud.firestore {
       );
     }
 
+    // Food Token Inventory Items
+    match /food_token_items/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // T-Shirt Orders
     match /tshirt_orders/{id} {
       allow read:   if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());

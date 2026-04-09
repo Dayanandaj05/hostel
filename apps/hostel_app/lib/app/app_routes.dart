@@ -32,5 +32,6 @@ abstract class AppRoutes {
   static const String adminMessMenu = '/admin/mess-menu';
   static const adminNotices = '/admin/notices';
   static const adminDashboard = '/admin/dashboard';
+  static const adminFoodTokens = '/admin/food-tokens';
   static const adminHostelDay = '/admin/hostel-day';
 }

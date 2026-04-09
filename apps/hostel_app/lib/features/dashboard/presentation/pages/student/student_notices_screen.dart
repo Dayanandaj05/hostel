@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hostel_app/app/app_routes.dart';
 import 'package:hostel_app/core/design/psg_design_system.dart';
-import 'package:hostel_app/services/mock/mock_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentNoticesScreen extends StatefulWidget {
   const StudentNoticesScreen({super.key});
@@ -14,15 +14,12 @@ class StudentNoticesScreen extends StatefulWidget {
 class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
-  late Future<List<Map<String, dynamic>>> _noticesFuture;
-
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(
       () => setState(() => _scrollOffset = _scrollController.offset),
     );
-    _noticesFuture = MockService.watchNotices().first;
   }
 
   @override
@@ -51,8 +48,12 @@ class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
                 : context.go(AppRoutes.studentHome),
           ),
         ),
-        body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _noticesFuture,
+        body: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('notices')
+              .where('isActive', isEqualTo: true)
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -60,9 +61,7 @@ class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
             if (snapshot.hasError) {
               return const Center(child: Text('Unable to load notices.'));
             }
-            final notices = (snapshot.data ?? [])
-                .where((n) => n['isActive'] == true)
-                .toList(growable: false);
+            final notices = snapshot.data?.docs ?? [];
             if (notices.isEmpty) {
               return const Center(child: Text('No data available'));
             }
@@ -80,8 +79,8 @@ class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
               itemCount: notices.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
-                final n = notices[index];
-                final createdAt = n['createdAt'] as DateTime?;
+                final n = notices[index].data() as Map<String, dynamic>;
+                final createdAt = (n['createdAt'] as Timestamp?)?.toDate();
                 return GlassCard(
                   borderRadius: 16,
                   child: ListTile(

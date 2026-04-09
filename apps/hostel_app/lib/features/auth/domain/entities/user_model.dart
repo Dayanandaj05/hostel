@@ -42,12 +42,14 @@ class UserModel {
     final data = doc.data()!;
     return UserModel(
       uid: doc.id,
-      name: data['name'] as String,
-      email: data['email'] as String,
+      name: data['name'] as String? ?? 'Unknown User',
+      email: data['email'] as String? ?? 'no-email@unlinked.com',
       role: UserRoleExtension.fromString(data['role'] as String?) ??
           UserRole.student,
       roomId: data['roomId'] as String?,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: data['createdAt'] != null 
+          ? (data['createdAt'] as Timestamp).toDate() 
+          : DateTime.now(),
       updatedAt: data['updatedAt'] != null
           ? (data['updatedAt'] as Timestamp).toDate()
           : null,

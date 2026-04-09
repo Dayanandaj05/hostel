@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hostel_app/services/mock/mock_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminStatisticsScreen extends StatefulWidget {
   const AdminStatisticsScreen({super.key});
@@ -14,7 +14,36 @@ class _AdminStatisticsScreenState extends State<AdminStatisticsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = MockService.getAdminMetrics();
+    _future = _fetchStats();
+  }
+
+  Future<Map<String, int>> _fetchStats() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      
+      final studentsSnap = await db.collection('users').where('role', isEqualTo: 'student').get();
+      final totalStudents = studentsSnap.size;
+      final totalRooms = studentsSnap.docs
+          .map((d) => (d.data())['roomId'] as String?)
+          .where((r) => r != null && r.isNotEmpty)
+          .toSet()
+          .length;
+
+      final lqSnap = await db.collection('leave_requests').where('status', isEqualTo: 'pending').count().get();
+      final pendingLeaves = lqSnap.count ?? 0;
+
+      final cmSnap = await db.collection('complaints').where('status', isEqualTo: 'open').count().get();
+      final openComplaints = cmSnap.count ?? 0;
+
+      return {
+        'totalStudents': totalStudents,
+        'totalRooms': totalRooms,
+        'pendingLeaves': pendingLeaves,
+        'openComplaints': openComplaints,
+      };
+    } catch (_) {
+      return {};
+    }
   }
 
   @override

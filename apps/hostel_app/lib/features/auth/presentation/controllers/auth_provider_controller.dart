@@ -1,25 +1,26 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hostel_app/services/notifications/notification_service.dart';
 
 import '../../domain/entities/user_model.dart';
-import '../../domain/repositories/auth_repository.dart';
+import '../../../../services/auth/auth_service.dart';
 
 class AuthProviderController extends ChangeNotifier {
-  AuthProviderController(this._authService) : _user = null;
+  AuthProviderController(this._authService);
 
   final AuthService _authService;
   UserModel? _user;
   bool _isLoading = false;
   String? _errorMessage;
+  StreamSubscription? _userDocSub;
+  StreamSubscription? _authStateSub;
 
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  // isAuthenticated is true ONLY when we also have the user's role from Firestore.
-  // This prevents the router from redirecting to /unauthorized while the user
-  // doc is still being fetched.
   bool get isAuthenticated => _user != null;
   UserRole? get role => _user?.role;
 
@@ -27,24 +28,48 @@ class AuthProviderController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    try {
-      if (_authService.currentUser != null) {
-        _user = await _authService.getCurrentUserModel();
+    _authStateSub = _authService.authStateChanges().listen((firebaseUser) {
+      _userDocSub?.cancel();
+      if (firebaseUser != null) {
+        _userDocSub = FirebaseFirestore.instance
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .snapshots()
+            .listen((doc) async {
+          try {
+            if (doc.exists) {
+              _user = UserModel.fromFirestore(doc);
+              if (_user != null) {
+                await NotificationService.updateToken(_user!.uid);
+                try {
+                  await NotificationService.subscribeToRole(_user!.role.value);
+                } catch (_) {}
+              }
+              _errorMessage = null;
+            } else {
+              _user = null;
+              _errorMessage = "User profile not found in database. Contact admin.";
+              await _authService.signOut(); // Force sign out if no profile
+            }
+          } catch (e) {
+            _user = null;
+            _errorMessage = "Error loading profile data: $e";
+            await _authService.signOut();
+          } finally {
+            _isLoading = false;
+            notifyListeners();
+          }
+        }, onError: (error) {
+          _user = null;
+          _errorMessage = "Network or permission error: $error";
+          _isLoading = false;
+          notifyListeners();
+        });
       } else {
-        // No authenticated user — leave _user as null.
-        // GoRouter redirect will send unauthenticated users to /login.
+        _user = null;
+        _isLoading = false;
+        notifyListeners();
       }
-    } catch (e) {
-      _errorMessage = 'Failed to load user: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-
-    // Keep user model in sync with Firestore changes.
-    _authService.watchCurrentUserModel().listen((userModel) {
-      _user = userModel;
-      notifyListeners();
     });
   }
 
@@ -59,27 +84,29 @@ class AuthProviderController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final credential = await _authService.signUpWithEmailAndPassword(
+      final credential = await _authService.createUserWithEmailAndPassword(
         email: email,
         password: password,
-        name: name,
-        role: role,
       );
 
-      // Fetch the full user model before notifying — ensures router sees a
-      // complete state (isAuthenticated && role != null) in one go.
-      if (credential.uid.isNotEmpty) {
-        _user = await _authService.getCurrentUserModel();
-        if (_user != null) {
-          // Mock mode: notifications are best-effort and should not block login.
-          await NotificationService.updateToken(_user!.uid);
-          await NotificationService.subscribeToRole(_user!.role.name);
-        } else {
-          _errorMessage =
-              'Profile creation confirmed, but failed to fetch data. Try logging in.';
-        }
+      final uid = credential.user?.uid;
+      if (uid != null) {
+        final newUser = UserModel(
+          uid: uid,
+          name: name,
+          email: email,
+          role: role,
+          createdAt: DateTime.now(),
+        );
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(newUser.toFirestore());
+
+        return true;
       }
-      return credential.uid.isNotEmpty && _user != null;
+      return false;
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
       return false;
@@ -88,7 +115,7 @@ class AuthProviderController extends ChangeNotifier {
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners(); // Single notification after everything is resolved.
+      notifyListeners();
     }
   }
 
@@ -101,33 +128,21 @@ class AuthProviderController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final credential = await _authService.signInWithEmailAndPassword(
+      await _authService.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      // Fetch the full user model before notifying — ensures router sees a
-      // complete state (isAuthenticated && role != null) in one go.
-      if (credential.uid.isNotEmpty) {
-        _user = await _authService.getCurrentUserModel();
-        if (_user != null) {
-          // Mock mode: notifications are best-effort and should not block login.
-          await NotificationService.updateToken(_user!.uid);
-          await NotificationService.subscribeToRole(_user!.role.name);
-        } else {
-          _errorMessage = 'User profile not found in database.';
-        }
-      }
-      return credential.uid.isNotEmpty && _user != null;
+      return true; // The stream listener will handle _isLoading
     } on AuthServiceException catch (e) {
       _errorMessage = e.message;
+      _isLoading = false;
+      notifyListeners();
       return false;
     } catch (e) {
       _errorMessage = 'Sign-in failed: $e';
-      return false;
-    } finally {
       _isLoading = false;
-      notifyListeners(); // Single notification after everything is resolved.
+      notifyListeners();
+      return false;
     }
   }
 
@@ -167,6 +182,13 @@ class AuthProviderController extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _userDocSub?.cancel();
+    _authStateSub?.cancel();
+    super.dispose();
   }
 
   static AuthProviderController of(BuildContext context) {
