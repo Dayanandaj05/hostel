@@ -17,6 +17,12 @@ class StaticNavBar extends StatelessWidget {
     this.badgeCounts = const {},
   });
 
+  static double reservedBottomPadding(BuildContext context) {
+    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+    // Reserve enough vertical space for the pill nav and gesture area.
+    return safeBottom + 84;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -140,12 +146,10 @@ class StaticNavBar extends StatelessWidget {
                               duration: PsgDurations.fast,
                               style: TextStyle(
                                 fontSize: 10,
-                                fontWeight: active
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: active
-                                    ? Colors.white
-                                    : PsgColors.primary,
+                                fontWeight:
+                                    active ? FontWeight.w700 : FontWeight.w500,
+                                color:
+                                    active ? Colors.white : PsgColors.primary,
                               ),
                               child: Text(
                                 item.label,

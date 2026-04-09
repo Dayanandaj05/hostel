@@ -63,10 +63,16 @@ class _StudentShellLayoutState extends State<StudentShellLayout> {
   @override
   Widget build(BuildContext context) {
     final notificationProvider = context.watch<NotificationProvider>();
+    final reservedBottom = StaticNavBar.reservedBottomPadding(context);
 
     return Stack(
       children: [
-        widget.child,
+        Positioned.fill(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: reservedBottom),
+            child: widget.child,
+          ),
+        ),
         StaticNavBar(
           currentIndex: _currentIndex,
           onTap: _onNavTap,

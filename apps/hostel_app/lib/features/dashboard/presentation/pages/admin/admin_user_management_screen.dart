@@ -168,11 +168,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
           ),
           title: 'User Management',
         ),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButton: FloatingActionButton.extended(
           backgroundColor: PsgColors.primary,
           foregroundColor: Colors.white,
+          elevation: 6,
           onPressed: () => _showUserForm(),
-          child: const Icon(Icons.person_add_rounded),
+          icon: const Icon(Icons.person_add_alt_1_rounded),
+          label: Text('Add User', style: PsgText.label(13, color: Colors.white)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          tooltip: 'Add user',
         ),
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).snapshots(),

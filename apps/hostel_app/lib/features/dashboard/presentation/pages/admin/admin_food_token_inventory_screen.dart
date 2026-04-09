@@ -42,11 +42,16 @@ class _AdminFoodTokenInventoryScreenState extends State<AdminFoodTokenInventoryS
             onPressed: () => context.go(AppRoutes.adminHome),
           ),
         ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _openItemDialog(),
           icon: const Icon(Icons.add_rounded),
-          label: const Text('Add Item'),
+          label: Text('Add Item', style: PsgText.label(13, color: Colors.white)),
           backgroundColor: PsgColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 6,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          tooltip: 'Add item',
         ),
         body: Consumer<FoodTokenInventoryController>(
           builder: (context, controller, _) {

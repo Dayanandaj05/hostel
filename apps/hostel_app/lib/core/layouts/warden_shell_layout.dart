@@ -60,9 +60,15 @@ class _WardenShellLayoutState extends State<WardenShellLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final reservedBottom = StaticNavBar.reservedBottomPadding(context);
     return Stack(
       children: [
-        widget.child,
+        Positioned.fill(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: reservedBottom),
+            child: widget.child,
+          ),
+        ),
         StaticNavBar(
           currentIndex: _currentIndex,
           onTap: _onNavTap,

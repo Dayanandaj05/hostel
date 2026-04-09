@@ -141,12 +141,16 @@ class _WardenNoticeScreenState extends State<WardenNoticeScreen> {
           ),
           title: 'Notices',
         ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: PsgColors.primary,
           foregroundColor: Colors.white,
+          elevation: 6,
           onPressed: _showPostNoticeSheet,
           icon: const Icon(Icons.add_rounded),
-          label: Text('Post Notice', style: PsgText.label(14, color: Colors.white)),
+          label: Text('Post Notice', style: PsgText.label(13, color: Colors.white)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          tooltip: 'Post notice',
         ),
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
