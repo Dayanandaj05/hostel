@@ -2,19 +2,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hostel_app/core/design/psg_design_system.dart';
+import 'package:hostel_app/core/widgets/static_nav_bar.dart';
 
 class AdminUserManagementScreen extends StatefulWidget {
   const AdminUserManagementScreen({super.key});
 
   @override
-  State<AdminUserManagementScreen> createState() => _AdminUserManagementScreenState();
+  State<AdminUserManagementScreen> createState() =>
+      _AdminUserManagementScreenState();
 }
 
 class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   void _showUserForm([DocumentSnapshot? userDoc]) {
     final isEditing = userDoc != null;
     final data = isEditing ? userDoc.data() as Map<String, dynamic> : null;
-    
+
     final nameCtrl = TextEditingController(text: data?['name'] ?? '');
     final emailCtrl = TextEditingController(text: data?['email'] ?? '');
     final rollCtrl = TextEditingController(text: data?['rollNumber'] ?? '');
@@ -31,7 +33,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
           builder: (context, setSheetState) {
             final isStudent = selectedRole == 'student';
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom),
               child: GlassCard(
                 borderRadius: 32,
                 padding: const EdgeInsets.all(24),
@@ -39,16 +42,24 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(isEditing ? 'Edit User' : 'Add New User', style: PsgText.headline(22, color: PsgColors.primary)),
+                    Text(isEditing ? 'Edit User' : 'Add New User',
+                        style: PsgText.headline(22, color: PsgColors.primary)),
                     const SizedBox(height: 24),
                     TextField(
                       controller: nameCtrl,
                       style: PsgText.body(14, color: PsgColors.onSurface),
                       decoration: InputDecoration(
                         labelText: 'Full Name',
-                        labelStyle: PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)), borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: PsgColors.primary), borderRadius: BorderRadius.circular(12)),
+                        labelStyle:
+                            PsgText.body(14, color: PsgColors.onSurfaceVariant),
+                        enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.2)),
+                            borderRadius: BorderRadius.circular(12)),
+                        focusedBorder: OutlineInputBorder(
+                            borderSide:
+                                const BorderSide(color: PsgColors.primary),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -57,9 +68,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                       style: PsgText.body(14, color: PsgColors.onSurface),
                       decoration: InputDecoration(
                         labelText: 'Email',
-                        labelStyle: PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)), borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: PsgColors.primary), borderRadius: BorderRadius.circular(12)),
+                        labelStyle:
+                            PsgText.body(14, color: PsgColors.onSurfaceVariant),
+                        enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.2)),
+                            borderRadius: BorderRadius.circular(12)),
+                        focusedBorder: OutlineInputBorder(
+                            borderSide:
+                                const BorderSide(color: PsgColors.primary),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -69,15 +87,25 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                       style: PsgText.body(14, color: PsgColors.onSurface),
                       decoration: InputDecoration(
                         labelText: 'Role',
-                        labelStyle: PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)), borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: PsgColors.primary), borderRadius: BorderRadius.circular(12)),
+                        labelStyle:
+                            PsgText.body(14, color: PsgColors.onSurfaceVariant),
+                        enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.2)),
+                            borderRadius: BorderRadius.circular(12)),
+                        focusedBorder: OutlineInputBorder(
+                            borderSide:
+                                const BorderSide(color: PsgColors.primary),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       items: ['student', 'warden', 'admin'].map((r) {
-                        return DropdownMenuItem(value: r, child: Text(r.toUpperCase()));
+                        return DropdownMenuItem(
+                            value: r, child: Text(r.toUpperCase()));
                       }).toList(),
                       onChanged: (val) {
-                        if (val != null) setSheetState(() => selectedRole = val);
+                        if (val != null) {
+                          setSheetState(() => selectedRole = val);
+                        }
                       },
                     ),
                     if (isStudent) ...[
@@ -87,9 +115,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                         style: PsgText.body(14, color: PsgColors.onSurface),
                         decoration: InputDecoration(
                           labelText: 'Roll Number',
-                          labelStyle: PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)), borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: PsgColors.primary), borderRadius: BorderRadius.circular(12)),
+                          labelStyle: PsgText.body(14,
+                              color: PsgColors.onSurfaceVariant),
+                          enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.2)),
+                              borderRadius: BorderRadius.circular(12)),
+                          focusedBorder: OutlineInputBorder(
+                              borderSide:
+                                  const BorderSide(color: PsgColors.primary),
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -98,9 +133,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                         style: PsgText.body(14, color: PsgColors.onSurface),
                         decoration: InputDecoration(
                           labelText: 'Room Number (optional)',
-                          labelStyle: PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)), borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: PsgColors.primary), borderRadius: BorderRadius.circular(12)),
+                          labelStyle: PsgText.body(14,
+                              color: PsgColors.onSurfaceVariant),
+                          enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.2)),
+                              borderRadius: BorderRadius.circular(12)),
+                          focusedBorder: OutlineInputBorder(
+                              borderSide:
+                                  const BorderSide(color: PsgColors.primary),
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ],
@@ -128,19 +170,26 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                             await userDoc.reference.update(payload);
                           } else {
                             payload['createdAt'] = FieldValue.serverTimestamp();
-                            await FirebaseFirestore.instance.collection('users').add(payload);
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .add(payload);
                           }
 
                           if (context.mounted) {
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User saved successfully')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('User saved successfully')));
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')));
                           }
                         } finally {
-                          if (context.mounted) setSheetState(() => isSaving = false);
+                          if (context.mounted) {
+                            setSheetState(() => isSaving = false);
+                          }
                         }
                       },
                     ),
@@ -163,37 +212,62 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         extendBodyBehindAppBar: true,
         appBar: PsgGlassAppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_rounded, color: PsgColors.primary, size: 20),
-            onPressed: () => context.canPop() ? context.pop() : context.go('/admin'),
+            icon: const Icon(Icons.arrow_back_ios_rounded,
+                color: PsgColors.primary, size: 20),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/admin'),
           ),
           title: 'User Management',
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: PsgColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 6,
-          onPressed: () => _showUserForm(),
-          icon: const Icon(Icons.person_add_alt_1_rounded),
-          label: Text('Add User', style: PsgText.label(13, color: Colors.white)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          tooltip: 'Add user',
+        floatingActionButton: Padding(
+          padding: EdgeInsets.only(
+            bottom: StaticNavBar.reservedBottomPadding(context) - 24,
+          ),
+          child: FloatingActionButton.extended(
+            backgroundColor: PsgColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 6,
+            onPressed: () => _showUserForm(),
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+            label: Text(
+              'Add User',
+              style: PsgText.label(13, color: Colors.white),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            tooltip: 'Add user',
+          ),
         ),
         body: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: PsgColors.primary));
-            if (snapshot.hasError) return Center(child: Text('Error loading users', style: PsgText.body(14, color: PsgColors.error)));
-            
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                  child: CircularProgressIndicator(color: PsgColors.primary));
+            }
+            if (snapshot.hasError) {
+              return Center(
+                  child: Text('Error loading users',
+                      style: PsgText.body(14, color: PsgColors.error)));
+            }
+
             final docs = snapshot.data?.docs ?? [];
             if (docs.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.group_outlined, size: 60, color: PsgColors.outline),
+                    const Icon(Icons.group_outlined,
+                        size: 60, color: PsgColors.outline),
                     const SizedBox(height: 16),
-                    Text('No users found', style: PsgText.label(16, color: PsgColors.onSurfaceVariant)),
+                    Text('No users found',
+                        style: PsgText.label(16,
+                            color: PsgColors.onSurfaceVariant)),
                   ],
                 ),
               );
@@ -237,26 +311,34 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(name, style: PsgText.headline(16, color: PsgColors.onSurface)),
-                                Text(email, style: PsgText.body(12, color: PsgColors.onSurfaceVariant)),
+                                Text(name,
+                                    style: PsgText.headline(16,
+                                        color: PsgColors.onSurface)),
+                                Text(email,
+                                    style: PsgText.body(12,
+                                        color: PsgColors.onSurfaceVariant)),
                                 if (role == 'student') ...[
                                   const SizedBox(height: 4),
                                   Text(
                                     'Roll: ${rollNumber.isEmpty ? 'N/A' : rollNumber} | Room: ${roomNumber.isEmpty ? '?' : roomNumber}',
-                                    style: PsgText.label(11, color: PsgColors.onSurfaceVariant),
+                                    style: PsgText.label(11,
+                                        color: PsgColors.onSurfaceVariant),
                                   ),
                                 ]
                               ],
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: roleColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: roleColor.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                  color: roleColor.withValues(alpha: 0.3)),
                             ),
-                            child: Text(role.toUpperCase(), style: PsgText.label(10, color: roleColor)),
+                            child: Text(role.toUpperCase(),
+                                style: PsgText.label(10, color: roleColor)),
                           ),
                         ],
                       ),

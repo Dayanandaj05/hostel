@@ -35,6 +35,15 @@ class _MyTokensScreenState extends State<MyTokensScreen>
     }
   }
 
+  bool _isPastExpiry(FoodTokenModel token) {
+    if (token.status != FoodTokenStatus.active || token.scheduledDate == null) {
+      return false;
+    }
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    return token.scheduledDate!.isBefore(todayStart);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -133,10 +142,18 @@ class _MyTokensScreenState extends State<MyTokensScreen>
                       return const Center(child: CircularProgressIndicator());
                     }
                     final active = controller.myTokens
-                        .where((t) => t.status == FoodTokenStatus.active)
+                        .where(
+                          (t) =>
+                              t.status == FoodTokenStatus.active &&
+                              !_isPastExpiry(t),
+                        )
                         .toList();
                     final history = controller.myTokens
-                        .where((t) => t.status != FoodTokenStatus.active)
+                        .where(
+                          (t) =>
+                              t.status != FoodTokenStatus.active ||
+                              _isPastExpiry(t),
+                        )
                         .toList();
                     return AnimatedSwitcher(
                       duration: PsgDurations.standard,
@@ -231,8 +248,27 @@ class _TokenCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = token.status == FoodTokenStatus.active;
-    final statusColor = isActive ? const Color(0xFF009688) : Colors.grey;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final isPastExpiry = token.status == FoodTokenStatus.active &&
+        token.scheduledDate != null &&
+        token.scheduledDate!.isBefore(todayStart);
+    final isActive = token.status == FoodTokenStatus.active && !isPastExpiry;
+    final statusColor = isActive
+        ? const Color(0xFF009688)
+        : isPastExpiry
+            ? Colors.orange
+            : Colors.grey;
+    final statusLabel = isActive
+        ? 'ACTIVE'
+        : isPastExpiry
+            ? 'EXPIRED'
+            : switch (token.status) {
+                FoodTokenStatus.used => 'USED',
+                FoodTokenStatus.cancelled => 'CANCELLED',
+                FoodTokenStatus.expired => 'EXPIRED',
+                FoodTokenStatus.active => 'EXPIRED',
+              };
     final mealIcon = switch ((token.mealSlot ?? '').toLowerCase()) {
       String s when s.contains('breakfast') => Icons.free_breakfast_rounded,
       String s when s.contains('dinner') => Icons.dinner_dining_rounded,
@@ -292,11 +328,13 @@ class _TokenCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: isActive
                               ? const Color(0xFF009688)
-                              : Colors.grey.shade600,
+                              : isPastExpiry
+                                  ? Colors.orange
+                                  : Colors.grey.shade600,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          isActive ? 'ACTIVE' : 'USED',
+                          statusLabel,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,
@@ -368,7 +406,9 @@ class _TokenCard extends StatelessWidget {
                   child: Icon(
                     isActive
                         ? Icons.qr_code_2_rounded
-                        : Icons.check_circle_rounded,
+                        : isPastExpiry
+                            ? Icons.timer_off_rounded
+                            : Icons.check_circle_rounded,
                     color: statusColor,
                     size: 32,
                   ),
@@ -382,16 +422,17 @@ class _TokenCard extends StatelessWidget {
   }
 
   Widget _pill(String label, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+              fontSize: 11, color: color, fontWeight: FontWeight.bold),
+        ),
+      );
 
   String _fmt(DateTime dt) =>
       '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';

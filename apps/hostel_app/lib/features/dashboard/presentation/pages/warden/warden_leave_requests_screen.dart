@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:hostel_app/core/design/psg_design_system.dart';
+import 'package:hostel_app/core/widgets/static_nav_bar.dart';
 import 'package:hostel_app/app/app_routes.dart';
 
 class WardenLeaveRequestsScreen extends StatefulWidget {
@@ -16,8 +17,6 @@ class WardenLeaveRequestsScreen extends StatefulWidget {
 
 class _WardenLeaveRequestsScreenState extends State<WardenLeaveRequestsScreen>
     with SingleTickerProviderStateMixin {
-  final _scrollController = ScrollController();
-  double _scrollOffset = 0;
   late TabController _tabController;
   static const _tabs = ['All', 'Pending', 'Approved', 'Rejected'];
 
@@ -25,88 +24,115 @@ class _WardenLeaveRequestsScreenState extends State<WardenLeaveRequestsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _scrollController.addListener(
-      () => setState(() => _scrollOffset = _scrollController.offset),
-    );
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
   Stream<QuerySnapshot> _stream(String filter) {
-    final q = FirebaseFirestore.instance
-        .collection('leave_requests')
-        .orderBy('createdAt', descending: true);
+    Query<Map<String, dynamic>> q =
+        FirebaseFirestore.instance.collection('leave_requests');
+    if (filter != 'all') {
+      q = q.where('status', isEqualTo: filter);
+    }
     return q.snapshots();
   }
 
   Future<void> _approve(String docId) async {
-    await FirebaseFirestore.instance
-        .collection('leave_requests')
-        .doc(docId)
-        .update({
-      'status': 'approved',
-      'approvedAt': FieldValue.serverTimestamp(),
-      'approvedBy': FirebaseAuth.instance.currentUser?.uid,
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Leave approved ✓'),
-          backgroundColor: Colors.green,
-        ),
-      );
+    try {
+      await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .doc(docId)
+          .update({
+        'status': 'approved',
+        'approvalManager': FirebaseAuth.instance.currentUser?.uid ?? '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Leave approved ✓'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Approval failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _reject(String docId) async {
     final reasonCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1F35),
-        title:
-            const Text('Reject Leave', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: reasonCtrl,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Reason for rejection (optional)',
-            hintStyle: TextStyle(color: Colors.white54),
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFF0D1F35),
+          title: const Text(
+            'Reject Leave',
+            style: TextStyle(color: Colors.white),
           ),
+          content: TextField(
+            controller: reasonCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'Reason for rejection (optional)',
+              hintStyle: TextStyle(color: Colors.white54),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Reject'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    await FirebaseFirestore.instance
-        .collection('leave_requests')
-        .doc(docId)
-        .update({
-      'status': 'rejected',
-      'rejectionReason': reasonCtrl.text.trim(),
-      'rejectedAt': FieldValue.serverTimestamp(),
-      'rejectedBy': FirebaseAuth.instance.currentUser?.uid,
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Leave rejected'), backgroundColor: Colors.red),
       );
+      if (confirmed != true) return;
+
+      final rejectionReason = reasonCtrl.text.trim();
+      await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .doc(docId)
+          .update({
+        'status': 'rejected',
+        'approvalManager': FirebaseAuth.instance.currentUser?.uid ?? '',
+        if (rejectionReason.isNotEmpty) 'rejectionReason': rejectionReason,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Leave rejected'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Rejection failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      reasonCtrl.dispose();
     }
   }
 
@@ -117,7 +143,7 @@ class _WardenLeaveRequestsScreenState extends State<WardenLeaveRequestsScreen>
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
         appBar: PsgGlassAppBar(
-          scrollOffset: _scrollOffset,
+          scrollOffset: 0,
           title: 'Leave Requests',
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_rounded,
@@ -169,13 +195,18 @@ class _WardenLeaveRequestsScreenState extends State<WardenLeaveRequestsScreen>
             ),
           );
         }
-        var docs = snap.data?.docs ?? [];
-        if (filter != 'all') {
-          docs = docs.where((d) {
-            final data = d.data() as Map<String, dynamic>;
-            return (data['status'] as String? ?? 'pending') == filter;
-          }).toList();
-        }
+        final docs = [...(snap.data?.docs ?? <QueryDocumentSnapshot>[])]
+          ..sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aTs = (aData['createdAt'] as Timestamp?) ??
+                (aData['updatedAt'] as Timestamp?);
+            final bTs = (bData['createdAt'] as Timestamp?) ??
+                (bData['updatedAt'] as Timestamp?);
+            final aDate = aTs?.toDate() ?? DateTime(2000);
+            final bDate = bTs?.toDate() ?? DateTime(2000);
+            return bDate.compareTo(aDate);
+          });
 
         if (docs.isEmpty) {
           return Center(
@@ -195,15 +226,26 @@ class _WardenLeaveRequestsScreenState extends State<WardenLeaveRequestsScreen>
         }
 
         return ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+          key: PageStorageKey<String>('warden_leave_$filter'),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            StaticNavBar.reservedBottomPadding(context) + 12,
+          ),
           itemCount: docs.length,
           itemBuilder: (_, i) {
             final doc = docs[i];
             final data = doc.data() as Map<String, dynamic>;
             final status = data['status'] as String? ?? 'pending';
-            final start = (data['startDate'] as Timestamp?)?.toDate();
-            final end = (data['endDate'] as Timestamp?)?.toDate();
+            final start =
+                ((data['startDate'] ?? data['fromDate']) as Timestamp?)
+                    ?.toDate();
+            final end =
+                ((data['endDate'] ?? data['toDate']) as Timestamp?)?.toDate();
             final reason = data['reason'] as String? ?? '';
             final desc = data['leaveType'] as String? ?? '';
             final isPending = status == 'pending';
@@ -276,10 +318,15 @@ class _WardenLeaveRequestsScreenState extends State<WardenLeaveRequestsScreen>
                         ],
                       ),
                     ],
-                    if (!isPending && data['rejectionReason'] != null) ...[
+                    if (!isPending &&
+                        (data['rejectionReason']
+                                ?.toString()
+                                .trim()
+                                .isNotEmpty ??
+                            false)) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Reason: ${data['rejectionReason']}',
+                        'Reason: ${data['rejectionReason'].toString()}',
                         style: PsgText.body(11, color: PsgColors.error),
                       ),
                     ],

@@ -57,30 +57,33 @@ abstract class PsgText {
     double size, {
     FontWeight weight = FontWeight.w900,
     Color? color,
-  }) => GoogleFonts.manrope(
-    fontSize: size,
-    fontWeight: weight,
-    letterSpacing: -0.5,
-    color: color,
-  );
+  }) =>
+      GoogleFonts.manrope(
+        fontSize: size,
+        fontWeight: weight,
+        letterSpacing: -0.5,
+        color: color,
+      );
 
   static TextStyle body(
     double size, {
     FontWeight weight = FontWeight.w400,
     Color? color,
-  }) => GoogleFonts.inter(fontSize: size, fontWeight: weight, color: color);
+  }) =>
+      GoogleFonts.inter(fontSize: size, fontWeight: weight, color: color);
 
   static TextStyle label(
     double size, {
     FontWeight weight = FontWeight.w700,
     double letterSpacing = 0.8,
     Color? color,
-  }) => GoogleFonts.inter(
-    fontSize: size,
-    fontWeight: weight,
-    letterSpacing: letterSpacing,
-    color: color,
-  );
+  }) =>
+      GoogleFonts.inter(
+        fontSize: size,
+        fontWeight: weight,
+        letterSpacing: letterSpacing,
+        color: color,
+      );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -134,6 +137,20 @@ abstract class PsgTheme {
           color: PsgColors.primary,
         ),
       ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        backgroundColor: const Color(0xEE003F87),
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 102),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+        ),
+        contentTextStyle: PsgText.body(
+          13,
+          weight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }
@@ -180,18 +197,18 @@ class MeshBackground extends StatelessWidget {
   }
 
   Widget _blob(double size, Color color, double opacity) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      gradient: RadialGradient(
-        colors: [
-          color.withValues(alpha: opacity),
-          color.withValues(alpha: 0),
-        ],
-      ),
-    ),
-  );
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: opacity),
+              color.withValues(alpha: 0),
+            ],
+          ),
+        ),
+      );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -423,9 +440,8 @@ class PsgBottomNav extends StatelessWidget {
                               active
                                   ? items[i].activeIcon ?? items[i].icon
                                   : items[i].icon,
-                              color: active
-                                  ? Colors.white
-                                  : Colors.grey.shade500,
+                              color:
+                                  active ? Colors.white : Colors.grey.shade500,
                               size: 22,
                             ),
                           ),
@@ -435,9 +451,8 @@ class PsgBottomNav extends StatelessWidget {
                             style: PsgText.label(
                               8,
                               letterSpacing: 0.8,
-                              color: active
-                                  ? Colors.white
-                                  : Colors.grey.shade500,
+                              color:
+                                  active ? Colors.white : Colors.grey.shade500,
                             ),
                           ),
                         ],
@@ -563,22 +578,22 @@ class PsgStatusChip extends StatelessWidget {
   });
 
   factory PsgStatusChip.approved() => const PsgStatusChip._(
-    label: 'APPROVED',
-    bg: Color(0xFFDCFCE7),
-    fg: Color(0xFF15803D),
-  );
+        label: 'APPROVED',
+        bg: Color(0xFFDCFCE7),
+        fg: Color(0xFF15803D),
+      );
 
   factory PsgStatusChip.pending() => const PsgStatusChip._(
-    label: 'PENDING',
-    bg: Color(0xFFFEF9C3),
-    fg: Color(0xFFB45309),
-  );
+        label: 'PENDING',
+        bg: Color(0xFFFEF9C3),
+        fg: Color(0xFFB45309),
+      );
 
   factory PsgStatusChip.rejected() => const PsgStatusChip._(
-    label: 'REJECTED',
-    bg: Color(0xFFFFDAD6),
-    fg: Color(0xFFBA1A1A),
-  );
+        label: 'REJECTED',
+        bg: Color(0xFFFFDAD6),
+        fg: Color(0xFFBA1A1A),
+      );
 
   factory PsgStatusChip.fromString(String status) {
     return switch (status.toLowerCase()) {
@@ -716,9 +731,9 @@ mixin PsgPageEntry<T extends StatefulWidget>
   }
 
   Widget withEntry(Widget child) => FadeTransition(
-    opacity: fadeAnim,
-    child: SlideTransition(position: slideAnim, child: child),
-  );
+        opacity: fadeAnim,
+        child: SlideTransition(position: slideAnim, child: child),
+      );
 
   @override
   void dispose() {

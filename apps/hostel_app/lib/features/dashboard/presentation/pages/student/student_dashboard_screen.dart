@@ -11,6 +11,7 @@ import '../../../../student/data/student_profile_provider.dart';
 import '../../../../tokens/presentation/controllers/food_token_controller.dart';
 import '../../../../tokens/domain/entities/food_token_model.dart';
 import '../../../../../core/design/psg_design_system.dart';
+import '../../../../../core/widgets/static_nav_bar.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -26,6 +27,43 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
   double _scrollOffset = 0;
+
+  double _asAmount(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value.trim()) ?? 0;
+    }
+    return 0;
+  }
+
+  double _resolveBaseMessFee(StudentProfileProvider profile) {
+    final data = profile.profileData;
+    if (data == null) return 0;
+
+    final directKeys = [
+      'baseMessFee',
+      'messBaseFee',
+      'monthlyMessFee',
+      'messFee',
+    ];
+    for (final key in directKeys) {
+      final value = _asAmount(data[key]);
+      if (value > 0) return value;
+    }
+
+    final isNorth = profile.isNorthIndianMess;
+    final typedKeys = isNorth
+        ? ['northIndianMessFee', 'northMessFee']
+        : ['southIndianMessFee', 'southMessFee'];
+    for (final key in typedKeys) {
+      final value = _asAmount(data[key]);
+      if (value > 0) return value;
+    }
+
+    return 0;
+  }
 
   @override
   void initState() {
@@ -74,13 +112,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         .where((t) => t.status == FoodTokenStatus.active)
         .length;
     final totalTokens = tokenController.myTokens.length;
-    final monthMessBill = tokenController.myTokens.where((t) {
+    final monthTokenTotal = tokenController.myTokens.where((t) {
       final d = t.scheduledDate;
       if (d == null) return false;
       return d.year == now.year &&
           d.month == now.month &&
           t.status != FoodTokenStatus.cancelled;
     }).fold<double>(0, (sum, t) => sum + (t.totalPrice ?? t.itemPrice ?? 0));
+    final baseMessFee = _resolveBaseMessFee(profile);
+    final monthMessBill = monthTokenTotal + baseMessFee;
 
     return MeshBackground(
       child: Scaffold(
@@ -118,6 +158,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
               activeBookedTokens,
               totalTokens,
               monthMessBill,
+              monthTokenTotal,
+              baseMessFee,
             ),
           ),
         ),
@@ -130,6 +172,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     int activeBookedTokens,
     int totalTokens,
     double monthMessBill,
+    double monthTokenTotal,
+    double baseMessFee,
   ) {
     return ListView(
       controller: _scrollController,
@@ -138,7 +182,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       ),
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 88,
-        bottom: 24,
+        bottom: StaticNavBar.reservedBottomPadding(context) + 20,
         left: 24,
         right: 24,
       ),
@@ -189,31 +233,30 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'CURRENT RESIDENCE',
-                          style: PsgText.label(
-                            9,
-                            letterSpacing: 1.6,
-                            color: PsgColors.secondary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          profile.roomId,
-                          style: PsgText.headline(34, color: PsgColors.primary),
-                        ),
-                      ],
+                    Text(
+                      'CURRENT RESIDENCE',
+                      style: PsgText.label(
+                        9,
+                        letterSpacing: 1.6,
+                        color: PsgColors.secondary,
+                      ),
                     ),
-                    const Icon(
-                      Icons.qr_code_2_rounded,
-                      color: PsgColors.primary,
-                      size: 32,
+                    const SizedBox(height: 4),
+                    Text(
+                      profile.roomNumber,
+                      style: PsgText.headline(34, color: PsgColors.primary),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      profile.rollNumber,
+                      style: PsgText.label(
+                        11,
+                        letterSpacing: 0.5,
+                        color: PsgColors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -224,29 +267,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                       child: _infoChip('Roll Number', profile.rollNumber),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: _infoChip('Mess Wing', profile.messType)),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // Swipe dot indicator
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: PsgColors.primary,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(3),
+                    Expanded(
+                      child: _infoChip(
+                        'Mess Wing',
+                        profile.messType,
+                        onTap: () =>
+                            context.go(AppRoutes.studentMessApplication),
                       ),
                     ),
                   ],
@@ -278,10 +304,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _statCard(
-                  '₹${monthMessBill.toStringAsFixed(0)}',
-                  'Mess Bill (Month)',
-                  isGreen: true,
+                child: GestureDetector(
+                  onTap: () => context.go(AppRoutes.studentMessBill),
+                  child: _statCard(
+                    '₹${monthMessBill.toStringAsFixed(0)}',
+                    'Mess Bill (Month)',
+                    isGreen: true,
+                    detail:
+                        'Token: ₹${monthTokenTotal.toStringAsFixed(0)}\nBase: ₹${baseMessFee.toStringAsFixed(0)}',
+                  ),
                 ),
               ),
             ],
@@ -421,8 +452,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     );
   }
 
-  Widget _infoChip(String label, String value) {
-    return Container(
+  Widget _infoChip(String label, String value, {VoidCallback? onTap}) {
+    final child = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.30),
@@ -444,9 +475,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         ],
       ),
     );
+
+    if (onTap == null) {
+      return child;
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: child,
+    );
   }
 
-  Widget _statCard(String value, String label, {required bool isGreen}) {
+  Widget _statCard(
+    String value,
+    String label, {
+    required bool isGreen,
+    String? detail,
+  }) {
     return GlassCard(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
       borderRadius: 14,
@@ -470,6 +516,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             ),
             textAlign: TextAlign.center,
           ),
+          if (detail != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              detail,
+              style: PsgText.body(9, color: PsgColors.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
       ),
     );

@@ -7,7 +7,9 @@ import 'package:hostel_app/core/design/psg_design_system.dart';
 import 'package:hostel_app/app/app_routes.dart';
 
 class WardenMessApplicationsScreen extends StatefulWidget {
-  const WardenMessApplicationsScreen({super.key});
+  const WardenMessApplicationsScreen({super.key, this.isAdminView = false});
+
+  final bool isAdminView;
 
   @override
   State<WardenMessApplicationsScreen> createState() =>
@@ -47,27 +49,77 @@ class _WardenMessApplicationsScreenState
 
   Future<void> _approve(String docId, String studentId) async {
     try {
-      final batch = FirebaseFirestore.instance.batch();
       final appRef =
           FirebaseFirestore.instance.collection('mess_applications').doc(docId);
-      batch.update(appRef, {
-        'status': 'approved',
-        'approvedBy': FirebaseAuth.instance.currentUser?.uid,
-        'approvedAt': FieldValue.serverTimestamp(),
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(appRef);
+        if (!snap.exists) {
+          return;
+        }
+
+        final data = snap.data() as Map<String, dynamic>;
+        final currentDecisionKey =
+            widget.isAdminView ? 'adminDecision' : 'wardenDecision';
+        final otherDecisionKey =
+            widget.isAdminView ? 'wardenDecision' : 'adminDecision';
+        final reviewedByKey =
+            widget.isAdminView ? 'adminReviewedBy' : 'wardenReviewedBy';
+        final reviewedAtKey =
+            widget.isAdminView ? 'adminReviewedAt' : 'wardenReviewedAt';
+
+        final updates = <String, dynamic>{
+          currentDecisionKey: 'approved',
+          reviewedByKey: currentUid,
+          reviewedAtKey: FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        final otherDecision = (data[otherDecisionKey] as String?) ?? 'pending';
+        final shouldFinalizeApproval = otherDecision == 'approved';
+        DocumentReference<Map<String, dynamic>>? userRef;
+        DocumentSnapshot<Map<String, dynamic>>? userSnap;
+
+        if (shouldFinalizeApproval && studentId.isNotEmpty) {
+          userRef =
+              FirebaseFirestore.instance.collection('users').doc(studentId);
+          userSnap = await txn.get(userRef);
+        }
+
+        if (shouldFinalizeApproval) {
+          updates.addAll({
+            'status': 'approved',
+            'approvedBy': currentUid,
+            'approvedAt': FieldValue.serverTimestamp(),
+            'rejectionReason': null,
+          });
+        } else {
+          updates['status'] = 'pending';
+        }
+
+        txn.update(appRef, updates);
+
+        if (shouldFinalizeApproval && userRef != null && userSnap != null) {
+          // Update only existing user profile docs; create is blocked by rules.
+          if (userSnap.exists) {
+            txn.update(userRef, {
+              'messType': 'North Indian',
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
       });
 
-      if (studentId.isNotEmpty) {
-        final userRef =
-            FirebaseFirestore.instance.collection('users').doc(studentId);
-        batch.set(
-            userRef, {'messType': 'North Indian'}, SetOptions(merge: true));
-      }
-
-      await batch.commit();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Application approved and mess updated.'),
+          SnackBar(
+            content: Text(
+              widget.isAdminView
+                  ? 'Admin decision saved. Final approval completes after warden approval.'
+                  : 'Warden decision saved. Final approval completes after admin approval.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -83,49 +135,70 @@ class _WardenMessApplicationsScreenState
 
   Future<void> _reject(String docId) async {
     final reasonCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1F35),
-        title: const Text('Reject Application',
-            style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: reasonCtrl,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Reason for rejection (optional)',
-            hintStyle: TextStyle(color: Colors.white54),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
     try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFF0D1F35),
+          title: const Text(
+            'Reject Application',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            controller: reasonCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'Reason for rejection (optional)',
+              hintStyle: TextStyle(color: Colors.white54),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Reject'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final rejectionReason = reasonCtrl.text.trim();
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      final currentDecisionKey =
+          widget.isAdminView ? 'adminDecision' : 'wardenDecision';
+      final reviewedByKey =
+          widget.isAdminView ? 'adminReviewedBy' : 'wardenReviewedBy';
+      final reviewedAtKey =
+          widget.isAdminView ? 'adminReviewedAt' : 'wardenReviewedAt';
+      final roleReasonKey =
+          widget.isAdminView ? 'adminRejectionReason' : 'wardenRejectionReason';
+
       await FirebaseFirestore.instance
           .collection('mess_applications')
           .doc(docId)
           .update({
         'status': 'rejected',
-        'rejectionReason': reasonCtrl.text.trim(),
-        'rejectedBy': FirebaseAuth.instance.currentUser?.uid,
+        currentDecisionKey: 'rejected',
+        reviewedByKey: currentUid,
+        reviewedAtKey: FieldValue.serverTimestamp(),
+        if (rejectionReason.isNotEmpty) roleReasonKey: rejectionReason,
+        if (rejectionReason.isNotEmpty) 'rejectionReason': rejectionReason,
+        'rejectedBy': currentUid,
         'rejectedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Application rejected'),
-              backgroundColor: Colors.red),
+            content: Text('Application rejected'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
@@ -134,6 +207,8 @@ class _WardenMessApplicationsScreenState
           SnackBar(content: Text('Rejection failed: $e')),
         );
       }
+    } finally {
+      reasonCtrl.dispose();
     }
   }
 
@@ -150,9 +225,15 @@ class _WardenMessApplicationsScreenState
                 color: PsgColors.primary, size: 20),
             onPressed: () => context.canPop()
                 ? context.pop()
-                : context.go(AppRoutes.wardenHome),
+                : context.go(
+                    widget.isAdminView
+                        ? AppRoutes.adminHome
+                        : AppRoutes.wardenHome,
+                  ),
           ),
-          title: 'Mess Applications',
+          title: widget.isAdminView
+              ? 'Mess Applications (Admin)'
+              : 'Mess Applications',
         ),
         body: Padding(
           padding:
@@ -240,8 +321,25 @@ class _WardenMessApplicationsScreenState
                 data['requestedMess'] as String? ?? 'North Indian';
             final remarks = data['remarks'] as String? ?? '';
             final status = data['status'] as String? ?? 'pending';
+            final wardenDecision = data['wardenDecision'] as String? ??
+                (status == 'approved'
+                    ? 'approved'
+                    : status == 'rejected'
+                        ? 'rejected'
+                        : 'pending');
+            final adminDecision = data['adminDecision'] as String? ??
+                (status == 'approved'
+                    ? 'approved'
+                    : status == 'rejected'
+                        ? 'rejected'
+                        : 'pending');
             final studentId = data['studentId'] as String? ?? '';
             final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+            final periodStart = (data['periodStart'] as Timestamp?)?.toDate();
+
+            final myDecision =
+                widget.isAdminView ? adminDecision : wardenDecision;
+            final canReview = status == 'pending' && myDecision == 'pending';
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -294,6 +392,25 @@ class _WardenMessApplicationsScreenState
                             PsgText.body(12, color: PsgColors.onSurfaceVariant),
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _decisionChip('Warden', wardenDecision),
+                        _decisionChip('Admin', adminDecision),
+                      ],
+                    ),
+                    if (periodStart != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Target period: ${DateFormat('MMMM yyyy').format(periodStart)}',
+                        style: PsgText.body(
+                          11,
+                          color: PsgColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                     if (createdAt != null) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -302,7 +419,7 @@ class _WardenMessApplicationsScreenState
                             PsgText.body(11, color: PsgColors.onSurfaceVariant),
                       ),
                     ],
-                    if (status == 'pending') ...[
+                    if (canReview) ...[
                       const SizedBox(height: 14),
                       Row(
                         children: [
@@ -334,11 +451,14 @@ class _WardenMessApplicationsScreenState
                       ),
                     ],
                     if (status == 'rejected' &&
-                        (data['rejectionReason'] as String?)?.isNotEmpty ==
-                            true) ...[
+                        (data['rejectionReason']
+                                ?.toString()
+                                .trim()
+                                .isNotEmpty ??
+                            false)) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Reason: ${data['rejectionReason']}',
+                        'Reason: ${data['rejectionReason'].toString()}',
                         style: PsgText.body(11, color: PsgColors.error),
                       ),
                     ],
@@ -383,6 +503,27 @@ class _WardenMessApplicationsScreenState
       child: Text(
         status.toUpperCase(),
         style: PsgText.label(9, letterSpacing: 0.8, color: color),
+      ),
+    );
+  }
+
+  Widget _decisionChip(String role, String decision) {
+    final color = switch (decision) {
+      'approved' => Colors.green,
+      'rejected' => Colors.red,
+      _ => Colors.amber,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        '$role: ${decision.toUpperCase()}',
+        style: PsgText.label(9, color: color),
       ),
     );
   }

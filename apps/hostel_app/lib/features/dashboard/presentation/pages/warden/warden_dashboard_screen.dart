@@ -19,10 +19,82 @@ class WardenDashboardScreen extends StatefulWidget {
 class _WardenDashboardScreenState extends State<WardenDashboardScreen>
     with SingleTickerProviderStateMixin {
   final _scrollController = ScrollController();
+  final Set<String> _actioningLeaveIds = <String>{};
   late final AnimationController _entryController;
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
   double _scrollOffset = 0;
+
+  Future<void> _updateLeaveStatus({
+    required String docId,
+    required String status,
+  }) async {
+    if (_actioningLeaveIds.contains(docId)) {
+      return;
+    }
+    setState(() => _actioningLeaveIds.add(docId));
+    try {
+      final approverId = AuthProviderController.of(context).user?.uid ?? '';
+      await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .doc(docId)
+          .update({
+        'status': status,
+        'approvalManager': approverId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(status == 'approved' ? 'Leave approved' : 'Leave rejected'),
+          backgroundColor: status == 'approved' ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Action failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _actioningLeaveIds.remove(docId));
+      }
+    }
+  }
+
+  Future<String> _resolveStudentName(Map<String, dynamic> leave) async {
+    final inlineName =
+        (leave['studentName'] ?? leave['name'] ?? leave['userName'])
+            ?.toString()
+            .trim();
+    if (inlineName != null && inlineName.isNotEmpty) {
+      return inlineName;
+    }
+
+    final userId = leave['userId']?.toString().trim() ?? '';
+    if (userId.isEmpty) {
+      return 'Student';
+    }
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      final data = userDoc.data();
+      final fromUser = data?['name']?.toString().trim();
+      if (fromUser != null && fromUser.isNotEmpty) {
+        return fromUser;
+      }
+    } catch (_) {
+      // Fallback to a generic label if profile lookup fails.
+    }
+    return 'Student';
+  }
 
   @override
   void initState() {
@@ -138,11 +210,8 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
 
   Widget _buildRecentLeavesSection() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('leave_requests')
-          .orderBy('createdAt', descending: true)
-          .limit(3)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance.collection('leave_requests').snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -168,8 +237,20 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
           );
         }
 
-        final docs = snap.data?.docs ?? [];
-        if (docs.isEmpty) {
+        final docs = [...(snap.data?.docs ?? <QueryDocumentSnapshot>[])];
+        docs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTs = (aData['createdAt'] as Timestamp?) ??
+              (aData['updatedAt'] as Timestamp?);
+          final bTs = (bData['createdAt'] as Timestamp?) ??
+              (bData['updatedAt'] as Timestamp?);
+          final aDate = aTs?.toDate() ?? DateTime(2000);
+          final bDate = bTs?.toDate() ?? DateTime(2000);
+          return bDate.compareTo(aDate);
+        });
+        final recent = docs.take(3).toList();
+        if (recent.isEmpty) {
           return GlassCard(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -198,13 +279,14 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
         }
 
         return Column(
-          children: List.generate(docs.length, (i) {
-            final leave = docs[i].data() as Map<String, dynamic>;
+          children: List.generate(recent.length, (i) {
+            final doc = recent[i];
+            final leave = doc.data() as Map<String, dynamic>;
             return StaggeredEntry(
               index: i + 3,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _leaveCard(leave),
+                child: _leaveCard(doc.id, leave),
               ),
             );
           }),
@@ -213,8 +295,10 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
     );
   }
 
-  Widget _leaveCard(Map<String, dynamic> leave) {
-    final userId = leave['userId']?.toString() ?? 'Student';
+  Widget _leaveCard(String docId, Map<String, dynamic> leave) {
+    final status = leave['status']?.toString() ?? 'pending';
+    final isPending = status == 'pending';
+    final isActioning = _actioningLeaveIds.contains(docId);
     final reason = leave['reason']?.toString() ?? 'Leave Request';
     final start = (leave['startDate'] ?? leave['fromDate']) as Timestamp?;
     final end = (leave['endDate'] ?? leave['toDate']) as Timestamp?;
@@ -237,34 +321,42 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              PsgAvatarInitials(name: userId, size: 46),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userId,
-                      style: PsgText.headline(
-                        15,
-                        weight: FontWeight.w800,
-                        color: PsgColors.primary,
-                      ),
+          FutureBuilder<String>(
+            future: _resolveStudentName(leave),
+            builder: (context, nameSnap) {
+              final studentName = (nameSnap.data ?? 'Student').trim();
+              return Row(
+                children: [
+                  PsgAvatarInitials(name: studentName, size: 46),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          studentName,
+                          style: PsgText.headline(
+                            15,
+                            weight: FontWeight.w800,
+                            color: PsgColors.primary,
+                          ),
+                        ),
+                        Text(
+                          reason,
+                          style: PsgText.body(
+                            12,
+                            color: PsgColors.onSurfaceVariant,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      reason,
-                      style: PsgText.body(
-                        12,
-                        color: PsgColors.onSurfaceVariant,
-                        weight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                  const SizedBox(width: 8),
+                  _compactStatusChip(status),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
           Row(
@@ -286,23 +378,56 @@ class _WardenDashboardScreenState extends State<WardenDashboardScreen>
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _actionBtn(
-                label: 'Reject',
-                onTap: () => context.go(AppRoutes.wardenLeaveRequests),
-                isOutlined: true,
-              ),
-              const SizedBox(width: 10),
-              _actionBtn(
-                label: 'Approve',
-                onTap: () => context.go(AppRoutes.wardenLeaveRequests),
-                isOutlined: false,
-              ),
-            ],
-          ),
+          if (isPending)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _actionBtn(
+                  label: isActioning ? 'Working...' : 'Reject',
+                  onTap: isActioning
+                      ? () {}
+                      : () =>
+                          _updateLeaveStatus(docId: docId, status: 'rejected'),
+                  isOutlined: true,
+                ),
+                const SizedBox(width: 10),
+                _actionBtn(
+                  label: isActioning ? 'Working...' : 'Approve',
+                  onTap: isActioning
+                      ? () {}
+                      : () =>
+                          _updateLeaveStatus(docId: docId, status: 'approved'),
+                  isOutlined: false,
+                ),
+              ],
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _compactStatusChip(String status) {
+    final normalized = status.toLowerCase();
+    final color = switch (normalized) {
+      'approved' => Colors.green,
+      'rejected' => Colors.red,
+      'pending' => Colors.amber,
+      _ => PsgColors.secondary,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        normalized.toUpperCase(),
+        style: PsgText.label(
+          8,
+          color: color,
+          letterSpacing: 0.7,
+        ),
       ),
     );
   }

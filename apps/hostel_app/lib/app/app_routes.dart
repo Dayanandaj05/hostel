@@ -8,7 +8,7 @@ abstract class AppRoutes {
   static const studentLeave = '/student/leave';
   static const studentComplaints = '/student/complaints';
   static const studentTokens = '/student/tokens';
-  static const studentMyTokens  = '/student/tokens/my';
+  static const studentMyTokens = '/student/tokens/my';
   static const studentTShirt = '/student/tshirt';
   static const studentMyTShirts = '/student/tshirt/my';
   static const studentDayEntry = '/student/dayentry';
@@ -18,6 +18,7 @@ abstract class AppRoutes {
   static const studentFees = '/student/fees';
   static const studentContact = '/student/contact';
   static const studentMessApplication = '/student/mess-application';
+  static const studentMessBill = '/student/mess-bill';
 
   static const wardenHome = '/warden';
   static const wardenLeaveRequests = '/warden/leave-requests';
@@ -30,6 +31,7 @@ abstract class AppRoutes {
   static const adminRoles = '/admin/roles';
   static const adminRooms = '/admin/rooms';
   static const String adminMessMenu = '/admin/mess-menu';
+  static const adminMessApplications = '/admin/mess-applications';
   static const adminNotices = '/admin/notices';
   static const adminDashboard = '/admin/dashboard';
   static const adminFoodTokens = '/admin/food-tokens';

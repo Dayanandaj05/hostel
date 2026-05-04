@@ -30,6 +30,7 @@ import '../features/dashboard/presentation/pages/student/student_contact_screen.
 import '../features/dashboard/presentation/pages/student/student_room_screen.dart';
 import '../features/dashboard/presentation/pages/student/student_notices_screen.dart';
 import '../features/dashboard/presentation/pages/student/mess_application_screen.dart';
+import '../features/dashboard/presentation/pages/student/student_mess_bill_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_dashboard_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_mess_applications_screen.dart';
 import '../features/dashboard/presentation/pages/warden/warden_leave_requests_screen.dart';
@@ -179,6 +180,11 @@ abstract class AppRouter {
                   _buildPage(const MessApplicationScreen(), state),
             ),
             GoRoute(
+              path: AppRoutes.studentMessBill,
+              pageBuilder: (context, state) =>
+                  _buildPage(const StudentMessBillScreen(), state),
+            ),
+            GoRoute(
               path: AppRoutes.studentFees,
               pageBuilder: (context, state) =>
                   _buildPage(const StudentFeesScreen(), state),
@@ -263,6 +269,13 @@ abstract class AppRouter {
                   _buildPage(const AdminMessMenuScreen(), state),
             ),
             GoRoute(
+              path: AppRoutes.adminMessApplications,
+              pageBuilder: (context, state) => _buildPage(
+                const WardenMessApplicationsScreen(isAdminView: true),
+                state,
+              ),
+            ),
+            GoRoute(
               path: AppRoutes.adminNotices,
               pageBuilder: (context, state) =>
                   _buildPage(const AdminNoticePostScreen(), state),
@@ -299,13 +312,12 @@ abstract class AppRouter {
           parent: animation,
           curve: Curves.easeOutCubic,
         );
-        final slide =
-            Tween<Offset>(
-              begin: const Offset(0.015, 0),
-              end: Offset.zero,
-            ).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutQuart),
-            );
+        final slide = Tween<Offset>(
+          begin: const Offset(0.015, 0),
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOutQuart),
+        );
         return FadeTransition(
           opacity: fade,
           child: SlideTransition(position: slide, child: child),

@@ -17,17 +17,44 @@ class MessApplicationScreen extends StatefulWidget {
 
 class _MessApplicationScreenState extends State<MessApplicationScreen> {
   final _scrollController = ScrollController();
-  double _scrollOffset = 0;
   final _remarksController = TextEditingController();
   bool _isLoading = false;
   bool _isAgreed = false;
 
+  DateTime _nextMonthStart(DateTime from) {
+    return DateTime(from.year, from.month + 1, 1);
+  }
+
+  DateTime _monthEnd(DateTime monthStart) {
+    return DateTime(
+      monthStart.year,
+      monthStart.month + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+  }
+
+  String _resolvePeriodLabel(Map<String, dynamic> data) {
+    final periodStart = (data['periodStart'] as Timestamp?)?.toDate();
+    if (periodStart != null) {
+      return DateFormat('MMMM yyyy').format(periodStart);
+    }
+
+    final year = (data['targetYear'] as num?)?.toInt();
+    final month = (data['targetMonth'] as num?)?.toInt();
+    if (year != null && month != null && month >= 1 && month <= 12) {
+      return DateFormat('MMMM yyyy').format(DateTime(year, month, 1));
+    }
+
+    return 'Upcoming month';
+  }
+
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(
-      () => setState(() => _scrollOffset = _scrollController.offset),
-    );
   }
 
   @override
@@ -51,18 +78,51 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
     final profile = context.read<StudentProfileProvider>();
     if (user == null) return;
 
+    final now = DateTime.now();
+    final periodStart = _nextMonthStart(now);
+    final periodEnd = _monthEnd(periodStart);
+    final applicationDeadline = _monthEnd(DateTime(now.year, now.month, 1));
+
+    if (now.isAfter(applicationDeadline)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Application window is closed for this billing cycle.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final existing = await FirebaseFirestore.instance
           .collection('mess_applications')
           .where('studentId', isEqualTo: user.uid)
-          .where('status', whereIn: ['pending', 'approved']).get();
-      if (existing.docs.isNotEmpty) {
+          .get();
+
+      final hasPending = existing.docs.any((doc) {
+        final data = doc.data();
+        return (data['status'] as String? ?? '').toLowerCase() == 'pending';
+      });
+
+      final hasTargetMonthActive = existing.docs.any((doc) {
+        final data = doc.data();
+        final status = (data['status'] as String? ?? '').toLowerCase();
+        final year = (data['targetYear'] as num?)?.toInt();
+        final month = (data['targetMonth'] as num?)?.toInt();
+        return (status == 'pending' || status == 'approved') &&
+            year == periodStart.year &&
+            month == periodStart.month;
+      });
+
+      if (hasPending || hasTargetMonthActive) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content:
-                  Text('You already have a pending or approved application.'),
+              content: Text(
+                'You already have an active request for review.',
+              ),
             ),
           );
         }
@@ -76,6 +136,12 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
         'currentMess': profile.messType,
         'requestedMess': 'North Indian',
         'status': 'pending',
+        'wardenDecision': 'pending',
+        'adminDecision': 'pending',
+        'targetYear': periodStart.year,
+        'targetMonth': periodStart.month,
+        'periodStart': Timestamp.fromDate(periodStart),
+        'periodEnd': Timestamp.fromDate(periodEnd),
         'remarks': _remarksController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -84,8 +150,10 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
         _remarksController.clear();
         setState(() => _isAgreed = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Application submitted! Awaiting warden approval.'),
+          SnackBar(
+            content: Text(
+              'Application submitted for ${DateFormat('MMMM yyyy').format(periodStart)}. Awaiting warden and admin approvals.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -112,7 +180,7 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
         appBar: PsgGlassAppBar(
-          scrollOffset: _scrollOffset,
+          scrollOffset: 0,
           title: 'Mess Application',
           leading: IconButton(
             icon: const Icon(
@@ -131,7 +199,6 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
                 stream: FirebaseFirestore.instance
                     .collection('mess_applications')
                     .where('studentId', isEqualTo: uid)
-                    .orderBy('createdAt', descending: true)
                     .snapshots(),
                 builder: (context, snap) {
                   if (snap.connectionState == ConnectionState.waiting) {
@@ -146,7 +213,19 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
                     );
                   }
 
-                  final docs = snap.data?.docs ?? [];
+                  final docs = [
+                    ...(snap.data?.docs ?? <QueryDocumentSnapshot>[])
+                  ]..sort((a, b) {
+                      final aData = a.data() as Map<String, dynamic>;
+                      final bData = b.data() as Map<String, dynamic>;
+                      final aTs = aData['createdAt'] as Timestamp?;
+                      final bTs = bData['createdAt'] as Timestamp?;
+                      final aDate = aTs?.toDate() ??
+                          DateTime.fromMillisecondsSinceEpoch(0);
+                      final bDate = bTs?.toDate() ??
+                          DateTime.fromMillisecondsSinceEpoch(0);
+                      return bDate.compareTo(aDate);
+                    });
                   final activeApp = docs.isNotEmpty &&
                           (['pending', 'approved'].contains(
                             ((docs.first.data()
@@ -174,7 +253,7 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Apply to switch from South Indian to North Indian mess.',
+                        'Apply this month to receive North Indian mess for the next month billing cycle.',
                         style:
                             PsgText.body(13, color: PsgColors.onSurfaceVariant),
                       ),
@@ -213,8 +292,20 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
 
   Widget _buildStatusTracker(Map<String, dynamic> data) {
     final status = data['status'] as String? ?? 'pending';
+    final wardenDecision = data['wardenDecision'] as String? ??
+        (status == 'approved'
+            ? 'approved'
+            : status == 'rejected'
+                ? 'rejected'
+                : 'pending');
+    final adminDecision = data['adminDecision'] as String? ??
+        (status == 'approved'
+            ? 'approved'
+            : status == 'rejected'
+                ? 'rejected'
+                : 'pending');
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-    final isPending = status == 'pending';
+    final periodLabel = _resolvePeriodLabel(data);
     final isApproved = status == 'approved';
     final isRejected = status == 'rejected';
 
@@ -229,10 +320,14 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
             ? Icons.cancel_rounded
             : Icons.schedule_rounded;
     final statusText = isApproved
-        ? 'Approved - Mess changed to North Indian'
+        ? 'Approved for $periodLabel'
         : isRejected
-            ? 'Rejected by warden'
-            : 'Under Review - Awaiting warden approval';
+            ? 'Rejected by ${wardenDecision == 'rejected' ? 'warden' : adminDecision == 'rejected' ? 'admin' : 'review team'}'
+            : wardenDecision == 'approved' && adminDecision == 'pending'
+                ? 'Warden approved. Awaiting admin approval.'
+                : adminDecision == 'approved' && wardenDecision == 'pending'
+                    ? 'Admin approved. Awaiting warden approval.'
+                    : 'Under Review - Awaiting warden and admin approvals';
 
     return GlassCard(
       child: Column(
@@ -257,19 +352,34 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
           Row(
             children: [
               _timelineDot(true, Colors.green, 'Applied'),
-              _timelineLine(isPending || isApproved || isRejected),
+              _timelineLine(true),
               _timelineDot(
-                isApproved || isRejected,
-                isApproved
+                wardenDecision == 'approved' || wardenDecision == 'rejected',
+                wardenDecision == 'approved'
                     ? Colors.green
-                    : isRejected
+                    : wardenDecision == 'rejected'
                         ? Colors.red
                         : Colors.grey,
-                'Review',
+                'Warden',
+              ),
+              _timelineLine(
+                wardenDecision == 'approved' || wardenDecision == 'rejected',
+              ),
+              _timelineDot(
+                adminDecision == 'approved' || adminDecision == 'rejected',
+                adminDecision == 'approved'
+                    ? Colors.green
+                    : adminDecision == 'rejected'
+                        ? Colors.red
+                        : Colors.grey,
+                'Admin',
               ),
               _timelineLine(isApproved || isRejected),
               _timelineDot(
-                  isApproved, isApproved ? Colors.green : Colors.grey, 'Done'),
+                isApproved,
+                isApproved ? Colors.green : Colors.grey,
+                'Done',
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -292,6 +402,29 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _messChip(
+                'Warden: ${wardenDecision.toUpperCase()}',
+                wardenDecision == 'approved'
+                    ? Colors.green
+                    : wardenDecision == 'rejected'
+                        ? Colors.red
+                        : Colors.amber,
+              ),
+              _messChip(
+                'Admin: ${adminDecision.toUpperCase()}',
+                adminDecision == 'approved'
+                    ? Colors.green
+                    : adminDecision == 'rejected'
+                        ? Colors.red
+                        : Colors.amber,
+              ),
+            ],
+          ),
           if (isRejected && data['rejectionReason'] != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -299,6 +432,11 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
               style: PsgText.body(12, color: PsgColors.error),
             ),
           ],
+          const SizedBox(height: 8),
+          Text(
+            'Applicable period: $periodLabel',
+            style: PsgText.body(11, color: PsgColors.onSurfaceVariant),
+          ),
           if (createdAt != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -346,9 +484,38 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
   }
 
   Widget _buildForm(StudentProfileProvider profile) {
+    final now = DateTime.now();
+    final nextMonthStart = _nextMonthStart(now);
+    final deadline = _monthEnd(DateTime(now.year, now.month, 1));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: PsgColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border:
+                Border.all(color: PsgColors.primary.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Applying for ${DateFormat('MMMM yyyy').format(nextMonthStart)}',
+                style: PsgText.label(12, color: PsgColors.primary),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Apply by ${DateFormat('dd MMM yyyy').format(deadline)}. If approved by both warden and admin, this mess choice is valid for the full month.',
+                style: PsgText.body(11, color: PsgColors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         Text(
           'YOUR CURRENT MESS',
           style: PsgText.label(9, letterSpacing: 1.4, color: PsgColors.primary),
@@ -419,7 +586,7 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  'I understand this change is subject to warden approval and fixed for the billing cycle.',
+                  'I understand this request needs both warden and admin approval, and once approved it is fixed for the target month.',
                   style: PsgText.body(12, color: PsgColors.onSurfaceVariant),
                 ),
               ),
@@ -456,6 +623,7 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
   Widget _buildHistoryCard(Map<String, dynamic> data) {
     final status = data['status'] as String? ?? 'rejected';
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+    final periodLabel = _resolvePeriodLabel(data);
     final color = status == 'approved' ? Colors.green : Colors.red;
 
     return Padding(
@@ -481,7 +649,7 @@ class _MessApplicationScreenState extends State<MessApplicationScreen> {
                   ),
                   if (createdAt != null)
                     Text(
-                      DateFormat('dd MMM yyyy').format(createdAt),
+                      '${DateFormat('dd MMM yyyy').format(createdAt)} • $periodLabel',
                       style:
                           PsgText.body(11, color: PsgColors.onSurfaceVariant),
                     ),

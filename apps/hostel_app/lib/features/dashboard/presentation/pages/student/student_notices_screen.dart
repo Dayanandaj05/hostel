@@ -14,6 +14,15 @@ class StudentNoticesScreen extends StatefulWidget {
 class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
+
+  bool _isVisibleToStudent(Map<String, dynamic> data) {
+    final isActive = data['isActive'] as bool? ?? true;
+    if (!isActive) return false;
+    final roles = data['audienceRoles'];
+    if (roles is! List) return true;
+    return roles.whereType<String>().contains('student');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +60,6 @@ class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('notices')
-              .where('isActive', isEqualTo: true)
               .orderBy('createdAt', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
@@ -61,7 +69,10 @@ class _StudentNoticesScreenState extends State<StudentNoticesScreen> {
             if (snapshot.hasError) {
               return const Center(child: Text('Unable to load notices.'));
             }
-            final notices = snapshot.data?.docs ?? [];
+            final notices = (snapshot.data?.docs ?? [])
+                .where((doc) =>
+                    _isVisibleToStudent(doc.data() as Map<String, dynamic>))
+                .toList();
             if (notices.isEmpty) {
               return const Center(child: Text('No data available'));
             }

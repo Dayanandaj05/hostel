@@ -21,19 +21,34 @@ service cloud.firestore {
         : null;
     }
 
+    function profileRole() {
+      return hasCurrentUserDoc() && get(currentUserPath()).data.role is string &&
+        isValidRole(get(currentUserPath()).data.role)
+        ? get(currentUserPath()).data.role
+        : null;
+    }
+
     function userRole() {
-      return claimRole() != null
-        ? claimRole()
-        : (hasCurrentUserDoc() ? get(currentUserPath()).data.role : null);
+      // Prefer role from Firestore profile so admin role updates take effect
+      // even if auth custom claims are stale.
+      return profileRole() != null
+        ? profileRole()
+        : claimRole();
+    }
+
+    function matchesRole(role, target) {
+      return role is string && role.matches('(?i)^\\s*' + target + '\\s*$');
     }
 
     function isValidRole(role) {
-      return role == 'student' || role == 'warden' || role == 'admin';
+      return matchesRole(role, 'student') ||
+        matchesRole(role, 'warden') ||
+        matchesRole(role, 'admin');
     }
 
-    function isStudent() { return isSignedIn() && userRole() == 'student'; }
-    function isWarden()  { return isSignedIn() && userRole() == 'warden';  }
-    function isAdmin()   { return isSignedIn() && userRole() == 'admin';   }
+    function isStudent() { return isSignedIn() && matchesRole(userRole(), 'student'); }
+    function isWarden()  { return isSignedIn() && matchesRole(userRole(), 'warden'); }
+    function isAdmin()   { return isSignedIn() && matchesRole(userRole(), 'admin'); }
     function isStaff()   { return isWarden() || isAdmin(); }
 
     function validUsersCreate(data, userId) {
@@ -139,10 +154,11 @@ service cloud.firestore {
     }
 
     function validLeaveUpdate(data, changedKeys) {
-      return changedKeys.hasOnly(['status', 'approvalManager', 'updatedAt']) &&
+      return changedKeys.hasOnly(['status', 'approvalManager', 'rejectionReason', 'updatedAt']) &&
         (!data.keys().hasAny(['status']) ||
           data.status == 'pending' || data.status == 'approved' || data.status == 'rejected') &&
-        (!data.keys().hasAny(['approvalManager']) || data.approvalManager is string);
+        (!data.keys().hasAny(['approvalManager']) || data.approvalManager is string) &&
+        (!data.keys().hasAny(['rejectionReason']) || data.rejectionReason is string);
     }
 
     function validFoodTokenCreate(data) {
@@ -262,11 +278,21 @@ service cloud.firestore {
     function validMessApplicationCreate(data) {
       return data.keys().hasAll([
           'studentId', 'studentName', 'rollNumber', 'currentMess',
-          'requestedMess', 'status', 'remarks', 'createdAt'
+          'requestedMess', 'status', 'remarks',
+          'targetYear', 'targetMonth', 'periodStart', 'periodEnd',
+          'wardenDecision', 'adminDecision', 'createdAt'
         ]) &&
         data.keys().hasOnly([
           'studentId', 'studentName', 'rollNumber', 'currentMess',
-          'requestedMess', 'status', 'remarks', 'createdAt', 'updatedAt'
+          'requestedMess', 'status', 'remarks',
+          'targetYear', 'targetMonth', 'periodStart', 'periodEnd',
+          'wardenDecision', 'adminDecision',
+          'approvedBy', 'approvedAt',
+          'rejectionReason', 'rejectedBy', 'rejectedAt',
+          'wardenReviewedBy', 'wardenReviewedAt',
+          'adminReviewedBy', 'adminReviewedAt',
+          'wardenRejectionReason', 'adminRejectionReason',
+          'createdAt', 'updatedAt'
         ]) &&
         data.studentId == request.auth.uid &&
         data.studentName is string &&
@@ -274,18 +300,48 @@ service cloud.firestore {
         data.currentMess is string &&
         data.requestedMess is string &&
         data.status == 'pending' &&
+        data.targetYear is int &&
+        data.targetMonth is int &&
+        data.targetMonth >= 1 && data.targetMonth <= 12 &&
+        data.periodStart is timestamp &&
+        data.periodEnd is timestamp &&
+        data.wardenDecision == 'pending' &&
+        data.adminDecision == 'pending' &&
         data.remarks is string;
     }
 
     function validMessApplicationUpdate(data, changedKeys) {
-      return changedKeys.hasOnly(['status', 'updatedAt']) &&
+      return changedKeys.hasOnly([
+          'status', 'updatedAt',
+          'approvedBy', 'approvedAt',
+          'rejectionReason', 'rejectedBy', 'rejectedAt',
+          'wardenDecision', 'adminDecision',
+          'wardenReviewedBy', 'wardenReviewedAt',
+          'adminReviewedBy', 'adminReviewedAt',
+          'wardenRejectionReason', 'adminRejectionReason'
+        ]) &&
         (!data.keys().hasAny(['status']) ||
-          data.status == 'pending' || data.status == 'approved' || data.status == 'rejected');
+          data.status == 'pending' || data.status == 'approved' || data.status == 'rejected') &&
+        (!data.keys().hasAny(['approvedBy']) || data.approvedBy == null || data.approvedBy is string) &&
+        (!data.keys().hasAny(['approvedAt']) || data.approvedAt == null || data.approvedAt is timestamp) &&
+        (!data.keys().hasAny(['rejectionReason']) || data.rejectionReason == null || data.rejectionReason is string) &&
+        (!data.keys().hasAny(['rejectedBy']) || data.rejectedBy == null || data.rejectedBy is string) &&
+        (!data.keys().hasAny(['rejectedAt']) || data.rejectedAt == null || data.rejectedAt is timestamp) &&
+        (!data.keys().hasAny(['wardenDecision']) ||
+          data.wardenDecision == 'pending' || data.wardenDecision == 'approved' || data.wardenDecision == 'rejected') &&
+        (!data.keys().hasAny(['adminDecision']) ||
+          data.adminDecision == 'pending' || data.adminDecision == 'approved' || data.adminDecision == 'rejected') &&
+        (!data.keys().hasAny(['wardenReviewedBy']) || data.wardenReviewedBy == null || data.wardenReviewedBy is string) &&
+        (!data.keys().hasAny(['wardenReviewedAt']) || data.wardenReviewedAt == null || data.wardenReviewedAt is timestamp) &&
+        (!data.keys().hasAny(['adminReviewedBy']) || data.adminReviewedBy == null || data.adminReviewedBy is string) &&
+        (!data.keys().hasAny(['adminReviewedAt']) || data.adminReviewedAt == null || data.adminReviewedAt is timestamp) &&
+        (!data.keys().hasAny(['wardenRejectionReason']) || data.wardenRejectionReason == null || data.wardenRejectionReason is string) &&
+        (!data.keys().hasAny(['adminRejectionReason']) || data.adminRejectionReason == null || data.adminRejectionReason is string);
     }
 
     // Users
     match /users/{userId} {
-      allow read:  if isSignedIn() && (request.auth.uid == userId || isStaff());
+      allow read:  if isSignedIn() && (request.auth.uid == userId || (isWarden() || isAdmin()));
       allow create: if isAdmin() && validUsersCreate(request.resource.data, userId);
       allow update: if isAdmin() && validUsersUpdate(
         request.resource.data,
@@ -364,7 +420,9 @@ service cloud.firestore {
     // Mess Applications
     match /mess_applications/{id} {
       allow read:   if isSignedIn() && (resource.data.studentId == request.auth.uid || isStaff());
-      allow create: if isStudent() && validMessApplicationCreate(request.resource.data);
+      allow create: if isSignedIn() &&
+        request.resource.data.studentId == request.auth.uid &&
+        validMessApplicationCreate(request.resource.data);
       allow update: if isStaff() && validMessApplicationUpdate(
         request.resource.data,
         request.resource.data.diff(resource.data).affectedKeys()

@@ -67,6 +67,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       Icons.inventory_2_rounded,
       AppRoutes.adminFoodTokens,
     ),
+    _Action(
+      'Mess Requests',
+      Icons.restaurant_menu_rounded,
+      AppRoutes.adminMessApplications,
+    ),
     _Action('View Data', Icons.analytics_rounded, AppRoutes.adminDashboard),
     _Action('Post Notice', Icons.campaign_rounded, AppRoutes.adminNotices),
     _Action('Hostel Day', Icons.celebration_rounded, AppRoutes.adminHostelDay),

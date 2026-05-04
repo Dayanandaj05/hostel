@@ -61,11 +61,12 @@ class FoodTokenModel {
     return FoodTokenModel(
       id: doc.id,
       userId: data['userId'] as String? ?? '',
-      itemName: data['itemName'] as String?,
+      itemName: (data['itemName'] as String?) ?? (data['name'] as String?),
       itemPrice: (data['itemPrice'] as num?)?.toDouble(),
       quantity: data['quantity'] as int?,
-      totalPrice: (data['totalPrice'] as num?)?.toDouble() ?? 
-                 ((data['itemPrice'] as num? ?? 0) * (data['quantity'] as num? ?? 1)).toDouble(),
+      totalPrice: (data['totalPrice'] as num?)?.toDouble() ??
+          ((data['itemPrice'] as num? ?? 0) * (data['quantity'] as num? ?? 1))
+              .toDouble(),
       mealSlot: data['mealSlot'] as String?,
       scheduledDate: (data['scheduledDate'] as Timestamp?)?.toDate(),
       status: FoodTokenStatusExt.fromString(data['status'] as String?),
