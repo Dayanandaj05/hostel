@@ -28,9 +28,12 @@ class _WardenMessApplicationsScreenState
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _scrollController.addListener(
-      () => setState(() => _scrollOffset = _scrollController.offset),
-    );
+    _scrollController.addListener(() {
+      final nextOffset = _scrollController.offset;
+      if ((nextOffset - _scrollOffset).abs() < 8) return;
+      if (!mounted) return;
+      setState(() => _scrollOffset = nextOffset);
+    });
   }
 
   @override

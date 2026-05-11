@@ -36,7 +36,8 @@ abstract class PsgColors {
 abstract class PsgDurations {
   static const Duration ultraFast = Duration(milliseconds: 80);
   static const Duration fast = Duration(milliseconds: 160);
-  static const Duration standard = Duration(milliseconds: 280);
+  static const Duration standard =
+      Duration(milliseconds: 240); // Snappier nav/transitions
   static const Duration slow = Duration(milliseconds: 420);
   static const Duration slower = Duration(milliseconds: 580);
   static const Duration entrance = Duration(milliseconds: 650);
@@ -47,6 +48,17 @@ abstract class PsgCurves {
   static const Curve smooth = Curves.easeInOutCubic;
   static const Curve entrance = Curves.easeOutQuart;
   static const Curve exit = Curves.easeInQuart;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PERFORMANCE TUNING
+// ══════════════════════════════════════════════════════════════════════════════
+abstract class PsgPerformance {
+  // Keeping blur moderate avoids GPU overdraw spikes on long lists.
+  static const double cardBlurSigma = 18;
+  static const double appBarMaxBlurSigma = 24;
+  static const double navMinBlurSigma = 14;
+  static const double navMaxBlurSigma = 24;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -164,35 +176,45 @@ class MeshBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(color: PsgColors.background),
-        // top-left blue blob
-        Positioned(
-          top: -40,
-          left: -40,
-          child: _blob(320, const Color(0xFF0056B3), 0.18),
-        ),
-        // top-right sky blob
-        Positioned(
-          top: -20,
-          right: -60,
-          child: _blob(280, const Color(0xFFA9D3FF), 0.22),
-        ),
-        // bottom-right deep blob
-        Positioned(
-          bottom: -60,
-          right: -40,
-          child: _blob(260, const Color(0xFF003F87), 0.12),
-        ),
-        // bottom-left light blob
-        Positioned(
-          bottom: -40,
-          left: -40,
-          child: _blob(260, const Color(0xFFACC7FF), 0.22),
-        ),
-        child,
-      ],
+    return RepaintBoundary(
+      child: Stack(
+        children: [
+          Container(color: PsgColors.background),
+          IgnorePointer(
+            child: RepaintBoundary(
+              child: Stack(
+                children: [
+                  // top-left blue blob
+                  Positioned(
+                    top: -40,
+                    left: -40,
+                    child: _blob(320, const Color(0xFF0056B3), 0.18),
+                  ),
+                  // top-right sky blob
+                  Positioned(
+                    top: -20,
+                    right: -60,
+                    child: _blob(280, const Color(0xFFA9D3FF), 0.22),
+                  ),
+                  // bottom-right deep blob
+                  Positioned(
+                    bottom: -60,
+                    right: -40,
+                    child: _blob(260, const Color(0xFF003F87), 0.12),
+                  ),
+                  // bottom-left light blob
+                  Positioned(
+                    bottom: -40,
+                    left: -40,
+                    child: _blob(260, const Color(0xFFACC7FF), 0.22),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          child,
+        ],
+      ),
     );
   }
 
@@ -235,7 +257,10 @@ class GlassCard extends StatelessWidget {
     final content = ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+        filter: ImageFilter.blur(
+          sigmaX: PsgPerformance.cardBlurSigma,
+          sigmaY: PsgPerformance.cardBlurSigma,
+        ),
         child: Container(
           padding: padding ?? const EdgeInsets.all(24),
           decoration: BoxDecoration(
@@ -247,8 +272,8 @@ class GlassCard extends StatelessWidget {
                 color: (shadowColor ?? PsgColors.primary).withValues(
                   alpha: 0.05,
                 ),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -285,11 +310,60 @@ class PsgGlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final t = (scrollOffset / 60).clamp(0.0, 1.0);
+    final blurSigma = PsgPerformance.appBarMaxBlurSigma * t.toDouble();
+
+    final barContent = SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        child: Row(
+          children: [
+            if (leading != null) ...[leading!, const SizedBox(width: 12)],
+            if (title == null) ...[
+              const Icon(
+                Icons.school_rounded,
+                color: PsgColors.primaryContainer,
+                size: 28,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'PSG HOSTEL',
+                style: PsgText.headline(
+                  20,
+                  color: PsgColors.primaryContainer,
+                ),
+              ),
+            ] else
+              Text(
+                title!,
+                style: PsgText.headline(
+                  20,
+                  color: PsgColors.primaryContainer,
+                ),
+              ),
+            const Spacer(),
+            if (actions != null)
+              Row(mainAxisSize: MainAxisSize.min, children: actions!),
+          ],
+        ),
+      ),
+    );
+
+    // Skip backdrop blur work while at rest (top of page).
+    if (blurSigma <= 0.01) {
+      return AnimatedContainer(
+        duration: PsgDurations.fast,
+        curve: PsgCurves.snappy,
+        decoration: const BoxDecoration(),
+        child: barContent,
+      );
+    }
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: 40 * t.toDouble(),
-          sigmaY: 40 * t.toDouble(),
+          sigmaX: blurSigma,
+          sigmaY: blurSigma,
         ),
         child: AnimatedContainer(
           duration: PsgDurations.fast,
@@ -302,42 +376,7 @@ class PsgGlassAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              child: Row(
-                children: [
-                  if (leading != null) ...[leading!, const SizedBox(width: 12)],
-                  if (title == null) ...[
-                    const Icon(
-                      Icons.school_rounded,
-                      color: PsgColors.primaryContainer,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'PSG HOSTEL',
-                      style: PsgText.headline(
-                        20,
-                        color: PsgColors.primaryContainer,
-                      ),
-                    ),
-                  ] else
-                    Text(
-                      title!,
-                      style: PsgText.headline(
-                        20,
-                        color: PsgColors.primaryContainer,
-                      ),
-                    ),
-                  const Spacer(),
-                  if (actions != null)
-                    Row(mainAxisSize: MainAxisSize.min, children: actions!),
-                ],
-              ),
-            ),
-          ),
+          child: barContent,
         ),
       ),
     );
@@ -364,7 +403,11 @@ class PsgBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = (scrollOffset / 80).clamp(0.0, 1.0);
-    final blur = lerpDouble(24, 42, t)!;
+    final blur = lerpDouble(
+      PsgPerformance.navMinBlurSigma,
+      PsgPerformance.navMaxBlurSigma,
+      t,
+    )!;
     final glassAlpha = lerpDouble(0.46, 0.34, t)!;
     final shadowAlpha = lerpDouble(0.16, 0.10, t)!;
 
@@ -687,14 +730,15 @@ class StaggeredEntry extends StatelessWidget {
     super.key,
     required this.child,
     this.index = 0,
-    this.baseDurationMs = 400,
+    this.baseDurationMs = 300, // Faster cascade for list items
   });
 
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: baseDurationMs + index * 60),
+      duration: Duration(
+          milliseconds: baseDurationMs + index * 40), // Tighter stagger
       curve: Curves.easeOutCubic,
       builder: (_, val, innerChild) => Opacity(
         opacity: val,
@@ -720,7 +764,7 @@ mixin PsgPageEntry<T extends StatefulWidget>
   void initPageEntry() {
     entryController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 400), // Snappier page transitions
     );
     fadeAnim = CurvedAnimation(parent: entryController, curve: Curves.easeOut);
     slideAnim = Tween<Offset>(

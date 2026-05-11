@@ -47,9 +47,12 @@ class _MyTokensScreenState extends State<MyTokensScreen>
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(
-      () => setState(() => _scrollOffset = _scrollController.offset),
-    );
+    _scrollController.addListener(() {
+      final nextOffset = _scrollController.offset;
+      if ((nextOffset - _scrollOffset).abs() < 8) return;
+      if (!mounted) return;
+      setState(() => _scrollOffset = nextOffset);
+    });
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {

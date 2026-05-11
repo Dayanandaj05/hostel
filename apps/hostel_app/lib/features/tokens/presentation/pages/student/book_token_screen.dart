@@ -660,7 +660,8 @@ class _BookTokenScreenState extends State<BookTokenScreen>
                             stream: _selectedMonthMessApprovals(uid),
                             builder: (context, snap) {
                               final approvals = snap.data?.docs ??
-                                  <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                                  <QueryDocumentSnapshot<
+                                      Map<String, dynamic>>>[];
                               final isNorthStudent =
                                   _isNorthIndianForSelectedDate(approvals);
 
@@ -670,8 +671,9 @@ class _BookTokenScreenState extends State<BookTokenScreen>
                               final bgColor = isNorthStudent
                                   ? Colors.indigo.withValues(alpha: 0.14)
                                   : PsgColors.primary.withValues(alpha: 0.12);
-                              final fgColor =
-                                  isNorthStudent ? Colors.indigo : PsgColors.primary;
+                              final fgColor = isNorthStudent
+                                  ? Colors.indigo
+                                  : PsgColors.primary;
 
                               return Container(
                                 width: double.infinity,

@@ -41,9 +41,12 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen>
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(
-      () => setState(() => _scrollOffset = _scrollController.offset),
-    );
+    _scrollController.addListener(() {
+      final nextOffset = _scrollController.offset;
+      if ((nextOffset - _scrollOffset).abs() < 8) return;
+      if (!mounted) return;
+      setState(() => _scrollOffset = nextOffset);
+    });
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),

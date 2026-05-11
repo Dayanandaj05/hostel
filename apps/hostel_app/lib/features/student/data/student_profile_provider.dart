@@ -51,7 +51,15 @@ class StudentProfileProvider extends ChangeNotifier {
   }
 
   String get displayName => profileData?['name'] as String? ?? 'Student';
-  String get rollNumber => profileData?['rollNumber'] as String? ?? '--';
+  String get rollNumber {
+    final stored = profileData?['rollNumber'] as String?;
+    if (stored != null && stored.isNotEmpty) return stored;
+    // Derive from email: rollNumber@psgtech.ac.in
+    final email = profileData?['email'] as String? ?? '';
+    final atIndex = email.indexOf('@');
+    if (atIndex > 0) return email.substring(0, atIndex).toUpperCase();
+    return '--';
+  }
   String get email => profileData?['email'] as String? ?? '--';
   String get programme => profileData?['programme'] as String? ?? '--';
   String get yearOfStudy => profileData?['yearOfStudy'] as String? ?? '--';

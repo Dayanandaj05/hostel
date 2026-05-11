@@ -47,7 +47,8 @@ class _WardenNoticeScreenState extends State<WardenNoticeScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom),
+                  bottom: MediaQuery.of(context).viewInsets.bottom +
+                      StaticNavBar.reservedBottomPadding(context)),
               child: GlassCard(
                 borderRadius: 32,
                 padding: const EdgeInsets.all(24),

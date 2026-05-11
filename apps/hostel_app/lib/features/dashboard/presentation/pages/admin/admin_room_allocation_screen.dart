@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hostel_app/core/design/psg_design_system.dart';
+import 'package:hostel_app/core/widgets/static_nav_bar.dart';
 
 class AdminRoomAllocationScreen extends StatefulWidget {
   const AdminRoomAllocationScreen({super.key});
@@ -35,7 +36,10 @@ class _AdminRoomAllocationScreenState extends State<AdminRoomAllocationScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom +
+                    StaticNavBar.reservedBottomPadding(context),
+              ),
               child: GlassCard(
                 borderRadius: 32,
                 padding: const EdgeInsets.all(24),

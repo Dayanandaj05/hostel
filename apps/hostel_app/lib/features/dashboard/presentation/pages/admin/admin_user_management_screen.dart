@@ -13,15 +13,66 @@ class AdminUserManagementScreen extends StatefulWidget {
 }
 
 class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
+  InputDecoration _fieldDecoration(String label) => InputDecoration(
+        labelText: label,
+        labelStyle: PsgText.body(14, color: PsgColors.onSurfaceVariant),
+        enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+            borderRadius: BorderRadius.circular(12)),
+        focusedBorder: OutlineInputBorder(
+            borderSide: const BorderSide(color: PsgColors.primary),
+            borderRadius: BorderRadius.circular(12)),
+      );
+
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 4),
+        child: Text(text,
+            style: PsgText.label(9,
+                letterSpacing: 1.4, color: PsgColors.secondary)),
+      );
+
   void _showUserForm([DocumentSnapshot? userDoc]) {
     final isEditing = userDoc != null;
     final data = isEditing ? userDoc.data() as Map<String, dynamic> : null;
 
+    // Basic
     final nameCtrl = TextEditingController(text: data?['name'] ?? '');
     final emailCtrl = TextEditingController(text: data?['email'] ?? '');
-    final rollCtrl = TextEditingController(text: data?['rollNumber'] ?? '');
-    final roomCtrl = TextEditingController(text: data?['roomNumber'] ?? '');
     String selectedRole = data?['role'] ?? 'student';
+
+    // Academic
+    final rollCtrl = TextEditingController(text: data?['rollNumber'] ?? '');
+    final programmeCtrl = TextEditingController(text: data?['programme'] ?? '');
+    final yearCtrl = TextEditingController(text: data?['yearOfStudy'] ?? '');
+
+    // Hostel
+    final hostelCtrl = TextEditingController(text: data?['hostelName'] ?? '');
+    final blockCtrl = TextEditingController(text: data?['blockName'] ?? '');
+    final roomCtrl = TextEditingController(text: data?['roomNumber'] ?? '');
+    final roomTypeCtrl = TextEditingController(text: data?['roomType'] ?? '');
+    final floorCtrl = TextEditingController(text: data?['floor'] ?? '');
+    final joiningCtrl = TextEditingController(text: data?['joiningDate'] ?? '');
+
+    // Mess
+    String selectedMessType = data?['messType'] ?? 'South Indian';
+    final balanceCtrl = TextEditingController(
+        text: data?['balance']?.toString() ?? '');
+    final establishmentCtrl = TextEditingController(
+        text: data?['establishment']?.toString() ?? '');
+    final depositCtrl =
+        TextEditingController(text: data?['deposit']?.toString() ?? '');
+
+    // Contact
+    final phoneCtrl = TextEditingController(text: data?['contactPhone'] ?? '');
+    final fatherCtrl = TextEditingController(text: data?['fatherName'] ?? '');
+    final primaryMobileCtrl =
+        TextEditingController(text: data?['primaryMobile'] ?? '');
+    final secondaryMobileCtrl =
+        TextEditingController(text: data?['secondaryMobile'] ?? '');
+    final bloodGroupCtrl =
+        TextEditingController(text: data?['bloodGroup'] ?? '');
+    final addressCtrl = TextEditingController(text: data?['address'] ?? '');
+
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -32,171 +83,379 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final isStudent = selectedRole == 'student';
-            return Padding(
-              padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom),
-              child: GlassCard(
-                borderRadius: 32,
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(isEditing ? 'Edit User' : 'Add New User',
-                        style: PsgText.headline(22, color: PsgColors.primary)),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: nameCtrl,
-                      style: PsgText.body(14, color: PsgColors.onSurface),
-                      decoration: InputDecoration(
-                        labelText: 'Full Name',
-                        labelStyle:
-                            PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                        enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.2)),
-                            borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(
-                            borderSide:
-                                const BorderSide(color: PsgColors.primary),
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: emailCtrl,
-                      style: PsgText.body(14, color: PsgColors.onSurface),
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        labelStyle:
-                            PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                        enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.2)),
-                            borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(
-                            borderSide:
-                                const BorderSide(color: PsgColors.primary),
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedRole,
-                      dropdownColor: PsgColors.background,
-                      style: PsgText.body(14, color: PsgColors.onSurface),
-                      decoration: InputDecoration(
-                        labelText: 'Role',
-                        labelStyle:
-                            PsgText.body(14, color: PsgColors.onSurfaceVariant),
-                        enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.2)),
-                            borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(
-                            borderSide:
-                                const BorderSide(color: PsgColors.primary),
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      items: ['student', 'warden', 'admin'].map((r) {
-                        return DropdownMenuItem(
-                            value: r, child: Text(r.toUpperCase()));
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setSheetState(() => selectedRole = val);
-                        }
-                      },
-                    ),
-                    if (isStudent) ...[
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: rollCtrl,
-                        style: PsgText.body(14, color: PsgColors.onSurface),
-                        decoration: InputDecoration(
-                          labelText: 'Roll Number',
-                          labelStyle: PsgText.body(14,
-                              color: PsgColors.onSurfaceVariant),
-                          enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.2)),
-                              borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                              borderSide:
-                                  const BorderSide(color: PsgColors.primary),
-                              borderRadius: BorderRadius.circular(12)),
+            return DraggableScrollableSheet(
+              initialChildSize: 0.92,
+              minChildSize: 0.5,
+              maxChildSize: 0.97,
+              expand: false,
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: PsgColors.background,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(28)),
+                  ),
+                  child: Column(
+                    children: [
+                      // drag handle
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: roomCtrl,
-                        style: PsgText.body(14, color: PsgColors.onSurface),
-                        decoration: InputDecoration(
-                          labelText: 'Room Number (optional)',
-                          labelStyle: PsgText.body(14,
-                              color: PsgColors.onSurfaceVariant),
-                          enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.2)),
-                              borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                              borderSide:
-                                  const BorderSide(color: PsgColors.primary),
-                              borderRadius: BorderRadius.circular(12)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            isEditing ? 'Edit User' : 'Add New User',
+                            style: PsgText.headline(22,
+                                color: PsgColors.primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: EdgeInsets.only(
+                            left: 24,
+                            right: 24,
+                            bottom: MediaQuery.of(context).viewInsets.bottom +
+                                StaticNavBar.reservedBottomPadding(context) +
+                                16,
+                          ),
+                          children: [
+                            // ── Basic
+                            _sectionLabel('BASIC INFO'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: nameCtrl,
+                              style:
+                                  PsgText.body(14, color: PsgColors.onSurface),
+                              decoration: _fieldDecoration('Full Name'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: emailCtrl,
+                              keyboardType: TextInputType.emailAddress,
+                              style:
+                                  PsgText.body(14, color: PsgColors.onSurface),
+                              decoration: _fieldDecoration('Email'),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              initialValue: selectedRole,
+                              dropdownColor: PsgColors.background,
+                              style:
+                                  PsgText.body(14, color: PsgColors.onSurface),
+                              decoration: _fieldDecoration('Role'),
+                              items: ['student', 'warden', 'admin'].map((r) {
+                                return DropdownMenuItem(
+                                    value: r,
+                                    child: Text(r.toUpperCase()));
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setSheetState(() => selectedRole = val);
+                                }
+                              },
+                            ),
+
+                            if (isStudent) ...[
+                              // ── Academic
+                              _sectionLabel('ACADEMIC'),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: rollCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Roll Number'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: programmeCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Programme'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: yearCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Year of Study'),
+                              ),
+
+                              // ── Hostel
+                              _sectionLabel('HOSTEL'),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: hostelCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Hostel Name'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: blockCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Block Name'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: roomCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Room Number'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: roomTypeCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Room Type'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: floorCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Floor'),
+                              ),
+                              const SizedBox(height: 12),
+                              GestureDetector(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: const ColorScheme.light(
+                                            primary: PsgColors.primary,
+                                            onPrimary: Colors.white,
+                                            surface: PsgColors.background,
+                                            onSurface: PsgColors.onSurface,
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (picked != null) {
+                                    joiningCtrl.text =
+                                        '${picked.day.toString().padLeft(2, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.year}';
+                                  }
+                                },
+                                child: AbsorbPointer(
+                                  child: TextField(
+                                    controller: joiningCtrl,
+                                    style: PsgText.body(14,
+                                        color: PsgColors.onSurface),
+                                    decoration: _fieldDecoration(
+                                            'Joining Date')
+                                        .copyWith(
+                                      suffixIcon: const Icon(
+                                          Icons.calendar_today_rounded,
+                                          color: PsgColors.primary,
+                                          size: 18),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // ── Mess
+                              _sectionLabel('MESS'),
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<String>(
+                                initialValue: selectedMessType,
+                                dropdownColor: PsgColors.background,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Mess Type'),
+                                items: ['South Indian', 'North Indian']
+                                    .map((m) => DropdownMenuItem(
+                                        value: m, child: Text(m)))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setSheetState(
+                                        () => selectedMessType = val);
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: balanceCtrl,
+                                keyboardType: TextInputType.number,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Balance (₹)'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: establishmentCtrl,
+                                keyboardType: TextInputType.number,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration:
+                                    _fieldDecoration('Establishment (₹)'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: depositCtrl,
+                                keyboardType: TextInputType.number,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Deposit (₹)'),
+                              ),
+
+                              // ── Contact
+                              _sectionLabel('CONTACT'),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: phoneCtrl,
+                                keyboardType: TextInputType.phone,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Contact Phone'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: fatherCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Father Name'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: primaryMobileCtrl,
+                                keyboardType: TextInputType.phone,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration:
+                                    _fieldDecoration('Primary Mobile'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: secondaryMobileCtrl,
+                                keyboardType: TextInputType.phone,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration:
+                                    _fieldDecoration('Secondary Mobile'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: bloodGroupCtrl,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Blood Group'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: addressCtrl,
+                                maxLines: 3,
+                                style: PsgText.body(14,
+                                    color: PsgColors.onSurface),
+                                decoration: _fieldDecoration('Address'),
+                              ),
+                            ],
+
+                            const SizedBox(height: 24),
+                            PsgFilledButton(
+                              label: 'Save User',
+                              loading: isSaving,
+                              onPressed: () async {
+                                final name = nameCtrl.text.trim();
+                                final email = emailCtrl.text.trim();
+                                if (name.isEmpty || email.isEmpty) return;
+
+                                setSheetState(() => isSaving = true);
+                                try {
+                                  final payload = <String, dynamic>{
+                                    'name': name,
+                                    'email': email,
+                                    'role': selectedRole,
+                                    if (isStudent) ...{
+                                      'rollNumber': rollCtrl.text.trim(),
+                                      'programme': programmeCtrl.text.trim(),
+                                      'yearOfStudy': yearCtrl.text.trim(),
+                                      'hostelName': hostelCtrl.text.trim(),
+                                      'blockName': blockCtrl.text.trim(),
+                                      'roomNumber': roomCtrl.text.trim(),
+                                      'roomType': roomTypeCtrl.text.trim(),
+                                      'floor': floorCtrl.text.trim(),
+                                      'joiningDate': joiningCtrl.text.trim(),
+                                      'messType': selectedMessType,
+                                      'balance': int.tryParse(
+                                              balanceCtrl.text.trim()) ??
+                                          0,
+                                      'establishment': int.tryParse(
+                                              establishmentCtrl.text.trim()) ??
+                                          0,
+                                      'deposit': int.tryParse(
+                                              depositCtrl.text.trim()) ??
+                                          0,
+                                      'contactPhone': phoneCtrl.text.trim(),
+                                      'fatherName': fatherCtrl.text.trim(),
+                                      'primaryMobile':
+                                          primaryMobileCtrl.text.trim(),
+                                      'secondaryMobile':
+                                          secondaryMobileCtrl.text.trim(),
+                                      'bloodGroup': bloodGroupCtrl.text.trim(),
+                                      'address': addressCtrl.text.trim(),
+                                    },
+                                  };
+
+                                  if (isEditing) {
+                                    payload['updatedAt'] =
+                                        FieldValue.serverTimestamp();
+                                    await userDoc.reference.update(payload);
+                                  } else {
+                                    payload['createdAt'] =
+                                        FieldValue.serverTimestamp();
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .add(payload);
+                                  }
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'User saved successfully')));
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                            content: Text('Error: $e')));
+                                  }
+                                } finally {
+                                  if (context.mounted) {
+                                    setSheetState(() => isSaving = false);
+                                  }
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                    const SizedBox(height: 24),
-                    PsgFilledButton(
-                      label: 'Save User',
-                      loading: isSaving,
-                      onPressed: () async {
-                        final name = nameCtrl.text.trim();
-                        final email = emailCtrl.text.trim();
-                        if (name.isEmpty || email.isEmpty) return;
-
-                        setSheetState(() => isSaving = true);
-                        try {
-                          final payload = <String, dynamic>{
-                            'name': name,
-                            'email': email,
-                            'role': selectedRole,
-                            if (isStudent) 'rollNumber': rollCtrl.text.trim(),
-                            if (isStudent) 'roomNumber': roomCtrl.text.trim(),
-                          };
-
-                          if (isEditing) {
-                            payload['updatedAt'] = FieldValue.serverTimestamp();
-                            await userDoc.reference.update(payload);
-                          } else {
-                            payload['createdAt'] = FieldValue.serverTimestamp();
-                            await FirebaseFirestore.instance
-                                .collection('users')
-                                .add(payload);
-                          }
-
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('User saved successfully')));
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e')));
-                          }
-                        } finally {
-                          if (context.mounted) {
-                            setSheetState(() => isSaving = false);
-                          }
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         );

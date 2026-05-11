@@ -21,9 +21,12 @@ class _WardenComplaintsScreenState extends State<WardenComplaintsScreen> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(
-      () => setState(() => _scrollOffset = _scrollController.offset),
-    );
+    _scrollController.addListener(() {
+      final nextOffset = _scrollController.offset;
+      if ((nextOffset - _scrollOffset).abs() < 8) return;
+      if (!mounted) return;
+      setState(() => _scrollOffset = nextOffset);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<ComplaintController>().watchComplaints();

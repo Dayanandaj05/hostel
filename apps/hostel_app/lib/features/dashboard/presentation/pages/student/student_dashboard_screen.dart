@@ -68,9 +68,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(
-      () => setState(() => _scrollOffset = _scrollController.offset),
-    );
+    _scrollController.addListener(() {
+      final nextOffset = _scrollController.offset;
+      if ((nextOffset - _scrollOffset).abs() < 8) return;
+      if (!mounted) return;
+      setState(() => _scrollOffset = nextOffset);
+    });
 
     _entryController = AnimationController(
       vsync: this,
@@ -111,7 +114,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     final activeBookedTokens = tokenController.myTokens
         .where((t) => t.status == FoodTokenStatus.active)
         .length;
-    final totalTokens = tokenController.myTokens.length;
+    final today = DateTime(now.year, now.month, now.day);
+    final activeTokens = tokenController.myTokens.where((t) {
+      if (t.status == FoodTokenStatus.cancelled) return false;
+      final d = t.scheduledDate;
+      if (d == null) return false;
+      return !DateTime(d.year, d.month, d.day).isBefore(today);
+    }).length;
     final monthTokenTotal = tokenController.myTokens.where((t) {
       final d = t.scheduledDate;
       if (d == null) return false;
@@ -156,7 +165,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             child: _homeTab(
               profile,
               activeBookedTokens,
-              totalTokens,
+              activeTokens,
               monthMessBill,
               monthTokenTotal,
               baseMessFee,
@@ -170,7 +179,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   Widget _homeTab(
     StudentProfileProvider profile,
     int activeBookedTokens,
-    int totalTokens,
+    int activeTokens,
     double monthMessBill,
     double monthTokenTotal,
     double baseMessFee,
@@ -212,15 +221,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Tap your name to open profile.',
-                style: PsgText.body(
-                  14,
-                  weight: FontWeight.w500,
-                  color: PsgColors.onSurfaceVariant,
-                ),
-              ),
             ],
           ),
         ),
@@ -233,49 +233,58 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      'CURRENT RESIDENCE',
-                      style: PsgText.label(
-                        9,
-                        letterSpacing: 1.6,
-                        color: PsgColors.secondary,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ROOM',
+                            style: PsgText.label(
+                              9,
+                              letterSpacing: 1.6,
+                              color: PsgColors.secondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            profile.roomNumber,
+                            style: PsgText.headline(34, color: PsgColors.primary),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      profile.roomNumber,
-                      style: PsgText.headline(34, color: PsgColors.primary),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      profile.rollNumber,
-                      style: PsgText.label(
-                        11,
-                        letterSpacing: 0.5,
-                        color: PsgColors.onSurfaceVariant,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'ROLL NUMBER',
+                          style: PsgText.label(
+                            9,
+                            letterSpacing: 1.6,
+                            color: PsgColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          profile.rollNumber,
+                          style: PsgText.label(
+                            13,
+                            letterSpacing: 0.5,
+                            color: PsgColors.onSurface,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _infoChip('Roll Number', profile.rollNumber),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _infoChip(
-                        'Mess Wing',
-                        profile.messType,
-                        onTap: () =>
-                            context.go(AppRoutes.studentMessApplication),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                _infoChip(
+                  'Current Mess',
+                  profile.messType,
+                  onTap: () => context.go(AppRoutes.studentMessApplication),
                 ),
               ],
             ),
@@ -292,15 +301,22 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                 child: GestureDetector(
                   onTap: () => context.go(AppRoutes.studentMyTokens),
                   child: _statCard(
-                    '$activeBookedTokens',
-                    'Booked Tokens',
+                    '$activeTokens',
+                    'Active Tokens',
                     isGreen: false,
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _statCard('$totalTokens', 'Tokens', isGreen: false),
+                child: GestureDetector(
+                  onTap: () => context.go(AppRoutes.studentMyTokens),
+                  child: _statCard(
+                    '$activeBookedTokens',
+                    'Booked Tokens',
+                    isGreen: false,
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
