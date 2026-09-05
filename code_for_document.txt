@@ -1,0 +1,624 @@
+Main components to document (essential)
+
+- App entrypoint and bootstrap: lib/main.dart
+- App widget and routing: lib/app/app.dart, lib/app/app_router.dart, lib/app/app_routes.dart
+- Firebase configuration: lib/firebase_options.dart
+- Authentication service: lib/services/auth/auth_service.dart
+- Firestore helper/service: lib/services/storage/firestore_service.dart
+- Notification service (shim): lib/services/notifications/notification_service.dart
+- Representative feature repository (tokens): lib/features/tokens/data/repositories/firestore_food_token_repository.dart
+- Project dependencies: pubspec.yaml
+
+-------------------------
+
+=== lib/main.dart ===
+Purpose: App entrypoint — initializes Firebase, wires services and repositories
+into providers, and boots the app.
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'package:hostel_app/app/app.dart';
+import 'package:hostel_app/services/storage/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hostel_app/services/auth/auth_service.dart';
+import 'package:hostel_app/features/auth/presentation/controllers/auth_provider_controller.dart';
+import 'package:hostel_app/features/complaints/data/repositories/firestore_complaint_repository.dart';
+import 'package:hostel_app/features/complaints/domain/repositories/complaint_repository.dart';
+import 'package:hostel_app/features/dayentry/data/repositories/firestore_day_entry_repository.dart';
+import 'package:hostel_app/features/dayentry/presentation/controllers/day_entry_controller.dart';
+import 'package:hostel_app/features/leave/data/repositories/firestore_leave_request_repository.dart';
+import 'package:hostel_app/features/leave/domain/repositories/leave_request_repository.dart';
+import 'package:hostel_app/features/leave/presentation/controllers/leave_request_controller.dart';
+import 'package:hostel_app/features/student/data/student_profile_provider.dart';
+import 'package:hostel_app/features/tokens/data/repositories/firestore_food_token_repository.dart';
+import 'package:hostel_app/features/tokens/domain/repositories/food_token_repository.dart';
+import 'package:hostel_app/features/tokens/presentation/controllers/food_token_controller.dart';
+import 'package:hostel_app/features/tshirt/data/repositories/firestore_tshirt_repository.dart';
+import 'package:hostel_app/features/tokens/data/repositories/firestore_food_token_inventory_repository.dart';
+import 'package:hostel_app/features/tokens/presentation/controllers/food_token_inventory_controller.dart';
+import 'package:hostel_app/features/tshirt/presentation/controllers/tshirt_controller.dart';
+import 'package:hostel_app/features/notifications/data/notification_provider.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _initializeFirebase();
+  runApp(const HostelManagementBootstrap());
+}
+
+Future<void> _initializeFirebase() async {
+  try {
+    if (kIsWeb) {
+      const apiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
+      const appId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
+      const messagingSenderId = String.fromEnvironment(
+        'FIREBASE_WEB_MESSAGING_SENDER_ID',
+      );
+      const projectId = String.fromEnvironment('FIREBASE_WEB_PROJECT_ID');
+      const authDomain = String.fromEnvironment('FIREBASE_WEB_AUTH_DOMAIN');
+      const storageBucket = String.fromEnvironment(
+        'FIREBASE_WEB_STORAGE_BUCKET',
+      );
+
+      if (apiKey.isNotEmpty &&
+          appId.isNotEmpty &&
+          messagingSenderId.isNotEmpty &&
+          projectId.isNotEmpty) {
+        await Firebase.initializeApp(
+          options: FirebaseOptions(
+            apiKey: apiKey,
+            appId: appId,
+            messagingSenderId: messagingSenderId,
+            projectId: projectId,
+            authDomain: authDomain.isNotEmpty ? authDomain : null,
+            storageBucket: storageBucket.isNotEmpty ? storageBucket : null,
+          ),
+        );
+        return;
+      }
+
+      debugPrint(
+        'Firebase web options are not configured. Supply dart-define values for web deployment.',
+      );
+      return;
+    }
+
+    await Firebase.initializeApp();
+  } catch (error) {
+    debugPrint('Firebase initialization skipped: $error');
+  }
+}
+
+class HostelManagementBootstrap extends StatefulWidget {
+  const HostelManagementBootstrap({super.key});
+
+  @override
+  State<HostelManagementBootstrap> createState() =>
+      _HostelManagementBootstrapState();
+}
+
+class _HostelManagementBootstrapState extends State<HostelManagementBootstrap> {
+  @override
+  Widget build(BuildContext context) {
+    final authService = AuthService(FirebaseAuth.instance);
+    final firestoreService = FirestoreService(FirebaseFirestore.instance);
+    final leaveRepository = FirestoreLeaveRequestRepository(firestoreService);
+    final foodTokenRepository = FirestoreFoodTokenRepository(firestoreService);
+    final foodTokenInventoryRepository =
+        FirestoreFoodTokenInventoryRepository(firestoreService);
+    final tshirtRepository = FirestoreTShirtRepository(firestoreService);
+    final dayEntryRepository = FirestoreDayEntryRepository(firestoreService);
+    final complaintRepository = FirestoreComplaintRepository(firestoreService);
+
+    return MultiProvider(
+      providers: [
+        Provider<AuthService>.value(value: authService),
+        Provider<LeaveRequestRepository>.value(value: leaveRepository),
+        Provider<FoodTokenRepository>.value(value: foodTokenRepository),
+        Provider<ComplaintRepository>.value(value: complaintRepository),
+        ChangeNotifierProvider<StudentProfileProvider>(
+          create: (_) => StudentProfileProvider(),
+        ),
+        ChangeNotifierProvider<LeaveRequestController>(
+          create: (_) => LeaveRequestController(leaveRepository),
+        ),
+        ChangeNotifierProvider<AuthProviderController>(
+          create: (_) => AuthProviderController(authService)..initialize(),
+        ),
+        ChangeNotifierProvider<FoodTokenController>(
+          create: (_) => FoodTokenController(foodTokenRepository),
+        ),
+        ChangeNotifierProvider<FoodTokenInventoryController>(
+          create: (_) =>
+              FoodTokenInventoryController(foodTokenInventoryRepository),
+        ),
+        ChangeNotifierProvider<TShirtController>(
+          create: (_) => TShirtController(tshirtRepository),
+        ),
+        ChangeNotifierProvider<DayEntryController>(
+          create: (_) => DayEntryController(dayEntryRepository),
+        ),
+        ChangeNotifierProvider<NotificationProvider>(
+          create: (_) => NotificationProvider(),
+        ),
+      ],
+      child: const HostelManagementApp(),
+    );
+  }
+}
+
+-------------------------
+
+=== lib/app/app.dart ===
+Purpose: App widget, theme and router initialization.
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../features/auth/presentation/controllers/auth_provider_controller.dart';
+import '../core/design/psg_design_system.dart';
+import 'app_router.dart';
+
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
+}
+
+class HostelManagementApp extends StatefulWidget {
+  const HostelManagementApp({super.key});
+
+  @override
+  State<HostelManagementApp> createState() => _HostelManagementAppState();
+}
+
+class _HostelManagementAppState extends State<HostelManagementApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = AppRouter.build(context.read<AuthProviderController>());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      title: 'Hostel Management System',
+      theme: PsgTheme.light,
+      scrollBehavior: const _AppScrollBehavior(),
+      routerConfig: _router,
+    );
+  }
+}
+
+-------------------------
+
+=== lib/app/app_router.dart ===
+Purpose: Routing rules and guards; maps roles to shells and pages.
+
+[app_router.dart content omitted in this summary file to keep it concise — include full file in documentation if needed]
+
+-------------------------
+
+=== lib/app/app_routes.dart ===
+Purpose: Central list of route path constants used across the app.
+
+abstract class AppRoutes {
+  static const splash = '/';
+  static const login = '/login';
+  static const unauthorized = '/unauthorized';
+
+  static const studentHome = '/student';
+  static const studentRoom = '/student/room';
+  static const studentLeave = '/student/leave';
+  static const studentComplaints = '/student/complaints';
+  static const studentTokens = '/student/tokens';
+  static const studentMyTokens = '/student/tokens/my';
+  static const studentTShirt = '/student/tshirt';
+  static const studentMyTShirts = '/student/tshirt/my';
+  static const studentDayEntry = '/student/dayentry';
+  static const studentNotices = '/student/notices';
+  static const studentProfile = '/student/profile';
+  static const studentMess = '/student/mess';
+  static const studentFees = '/student/fees';
+  static const studentContact = '/student/contact';
+  static const studentMessApplication = '/student/mess-application';
+  static const studentMessBill = '/student/mess-bill';
+
+  static const wardenHome = '/warden';
+  static const wardenLeaveRequests = '/warden/leave-requests';
+  static const wardenMessApplications = '/warden/mess-applications';
+  static const wardenComplaints = '/warden/complaints';
+  static const wardenNotices = '/warden/notices';
+
+  static const adminHome = '/admin';
+  static const adminUsers = '/admin/users';
+  static const adminRoles = '/admin/roles';
+  static const adminRooms = '/admin/rooms';
+  static const String adminMessMenu = '/admin/mess-menu';
+  static const adminMessApplications = '/admin/mess-applications';
+  static const adminNotices = '/admin/notices';
+  static const adminDashboard = '/admin/dashboard';
+  static const adminFoodTokens = '/admin/food-tokens';
+  static const adminHostelDay = '/admin/hostel-day';
+}
+
+-------------------------
+
+=== lib/firebase_options.dart ===
+Purpose: Generated Firebase configuration for each platform.
+
+// File generated by FlutterFire CLI.
+// ignore_for_file: type=lint
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      return web;
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+        return ios;
+      case TargetPlatform.macOS:
+        return macos;
+      case TargetPlatform.windows:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.linux:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for linux - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      default:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not supported for this platform.',
+        );
+    }
+  }
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDBMwfAghaUT0NS82zUZTFnBw9-jydnj60',
+    appId: '1:251911023605:web:ec4ec02252da49802bcebc',
+    messagingSenderId: '251911023605',
+    projectId: 'psg-hostel-app',
+    authDomain: 'psg-hostel-app.firebaseapp.com',
+    storageBucket: 'psg-hostel-app.firebasestorage.app',
+    measurementId: 'G-RFFM02MXJH',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyAvglhfOEZ6tGPg6LztCQty7R-KTnHYV9M',
+    appId: '1:251911023605:android:62c9213a8ede85ed2bcebc',
+    messagingSenderId: '251911023605',
+    projectId: 'psg-hostel-app',
+    storageBucket: 'psg-hostel-app.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCOFNjoNkBhb3JZupxmfxpE4cTBeZHG-1Y',
+    appId: '1:251911023605:ios:87720860a9e5a4252bcebc',
+    messagingSenderId: '251911023605',
+    projectId: 'psg-hostel-app',
+    storageBucket: 'psg-hostel-app.firebasestorage.app',
+    iosBundleId: 'com.example.hostelApp',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCOFNjoNkBhb3JZupxmfxpE4cTBeZHG-1Y',
+    appId: '1:251911023605:ios:87720860a9e5a4252bcebc',
+    messagingSenderId: '251911023605',
+    projectId: 'psg-hostel-app',
+    storageBucket: 'psg-hostel-app.firebasestorage.app',
+    iosBundleId: 'com.example.hostelApp',
+  );
+}
+
+-------------------------
+
+=== lib/services/auth/auth_service.dart ===
+Purpose: Lightweight wrapper around `FirebaseAuth` exposing common auth operations
+and mapping Firebase exceptions into `AuthServiceException`.
+
+import 'package:firebase_auth/firebase_auth.dart';
+
+class AuthService {
+  AuthService(this._firebaseAuth);
+
+  final FirebaseAuth _firebaseAuth;
+
+  User? get currentUser => _firebaseAuth.currentUser;
+  String? get currentUserId => _firebaseAuth.currentUser?.uid;
+
+  Stream<User?> authStateChanges() => _firebaseAuth.authStateChanges();
+
+  Future<UserCredential> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      return await _firebaseAuth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+    } on FirebaseAuthException catch (error) {
+      throw AuthServiceException.fromFirebase(error);
+    }
+  }
+
+  Future<UserCredential> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      return await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+    } on FirebaseAuthException catch (error) {
+      throw AuthServiceException.fromFirebase(error);
+    }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (error) {
+      throw AuthServiceException.fromFirebase(error);
+    }
+  }
+
+  Future<void> signOut() => _firebaseAuth.signOut();
+
+  Future<String?> getRoleClaim({bool forceRefresh = false}) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      return null;
+    }
+
+    final idToken = await user.getIdTokenResult(forceRefresh);
+    final role = idToken.claims?['role'];
+    return role is String ? role : null;
+  }
+}
+
+class AuthServiceException implements Exception {
+  AuthServiceException({required this.code, required this.message});
+
+  final String code;
+  final String message;
+
+  factory AuthServiceException.fromFirebase(FirebaseAuthException error) {
+    return AuthServiceException(
+      code: error.code,
+      message: error.message ?? 'Authentication operation failed.',
+    );
+  }
+
+  @override
+  String toString() => 'AuthServiceException(code: $code, message: $message)';
+}
+
+-------------------------
+
+=== lib/services/storage/firestore_service.dart ===
+Purpose: Small Firestore wrapper providing convenience helpers, typed collections,
+and common operations used across repositories.
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+typedef FromFirestore<T> = T Function(
+  DocumentSnapshot<Map<String, dynamic>> snapshot,
+);
+typedef ToFirestore<T> = Map<String, dynamic> Function(T value);
+
+class FirestoreService {
+  FirestoreService(this._firestore);
+
+  final FirebaseFirestore _firestore;
+
+  CollectionReference<Map<String, dynamic>> collection(String path) {
+    return _firestore.collection(path);
+  }
+
+  DocumentReference<Map<String, dynamic>> doc(String path) {
+    return _firestore.doc(path);
+  }
+
+  Future<Map<String, dynamic>?> getDocument(String path) async {
+    final snapshot = await doc(path).get();
+    return snapshot.data();
+  }
+
+  Stream<Map<String, dynamic>?> watchDocument(String path) {
+    return doc(path).snapshots().map((snapshot) => snapshot.data());
+  }
+
+  Future<void> setDocument({
+    required String path,
+    required Map<String, dynamic> data,
+    bool merge = true,
+  }) async {
+    final now = FieldValue.serverTimestamp();
+    final payload = <String, dynamic>{
+      ...data,
+      'updatedAt': now,
+    };
+
+    if (!data.containsKey('createdAt')) {
+      payload['createdAt'] = now;
+    }
+
+    await doc(path).set(payload, SetOptions(merge: merge));
+  }
+
+  Future<void> updateDocument({
+    required String path,
+    required Map<String, dynamic> data,
+  }) async {
+    final payload = <String, dynamic>{
+      ...data,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    await doc(path).update(payload);
+  }
+
+  Future<void> deleteDocument(String path) async {
+    await doc(path).delete();
+  }
+
+  Future<T> runTransaction<T>(
+    TransactionHandler<T> transactionHandler,
+  ) {
+    return _firestore.runTransaction(transactionHandler);
+  }
+
+  WriteBatch batch() => _firestore.batch();
+
+  CollectionReference<T> typedCollection<T>({
+    required String path,
+    required FromFirestore<T> fromFirestore,
+    required ToFirestore<T> toFirestore,
+  }) {
+    return collection(path).withConverter<T>(
+      fromFirestore: (snapshot, _) => fromFirestore(snapshot),
+      toFirestore: (value, _) => toFirestore(value),
+    );
+  }
+
+  Future<void> setUserScopedDocument({
+    required String uid,
+    required String collectionPath,
+    required String documentId,
+    required Map<String, dynamic> data,
+    bool merge = true,
+  }) async {
+    final path = '$collectionPath/$uid/$documentId';
+    await setDocument(path: path, data: data, merge: merge);
+  }
+}
+
+-------------------------
+
+=== lib/services/notifications/notification_service.dart ===
+Purpose: Offline/shim notification service used when backend messaging
+capabilities are disabled (useful in local/test environments).
+
+import 'package:flutter/foundation.dart';
+
+/// Offline notification shim used when backend services are disabled.
+class NotificationService {
+  static Future<void> initialize() async {
+    debugPrint('NotificationService: offline mode initialize');
+  }
+
+  static Future<void> updateToken(String uid) async {
+    debugPrint(
+        'NotificationService: skip token update for $uid (offline mode)');
+  }
+
+  static Future<void> subscribeToRole(String role) async {
+    debugPrint('NotificationService: skip subscribe role=$role (offline mode)');
+  }
+
+  static Future<void> unsubscribeAll() async {
+    debugPrint('NotificationService: skip unsubscribe (offline mode)');
+  }
+}
+
+-------------------------
+
+=== lib/features/tokens/data/repositories/firestore_food_token_repository.dart ===
+Purpose: Example feature repository showing how domain models are persisted
+and streamed from Firestore (tokens feature).
+
+import '../../../../services/storage/firestore_service.dart';
+import '../../domain/entities/food_token_model.dart';
+import '../../domain/repositories/food_token_repository.dart';
+
+class FirestoreFoodTokenRepository implements FoodTokenRepository {
+  FirestoreFoodTokenRepository(this._firestoreService);
+  final FirestoreService _firestoreService;
+  static const _collection = 'food_tokens';
+
+  @override
+  Future<void> bookToken(FoodTokenModel token) async {
+    await _firestoreService.collection(_collection).add(token.toFirestore());
+  }
+
+  @override
+  Future<void> cancelToken(String tokenId) async {
+    await _firestoreService.collection(_collection).doc(tokenId).update({'status': 'cancelled'});
+  }
+
+  @override
+  Stream<List<FoodTokenModel>> watchMyTokens(String userId) {
+    return _firestoreService
+        .collection(_collection)
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map((doc) => FoodTokenModel.fromFirestore(doc)).toList();
+      list.sort((a, b) {
+        final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+      return list;
+    });
+  }
+}
+
+-------------------------
+
+=== pubspec.yaml (dependencies excerpt) ===
+Purpose: Shows core dependencies required to build and run the app.
+
+name: hostel_app
+description: Production-ready Hostel Management System (Flutter + Firebase)
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.2
+  cloud_firestore: ^5.6.6
+  firebase_messaging: ^15.2.5
+  go_router: ^14.8.1
+  provider: ^6.1.2
+
+-------------------------
+
+Notes:
+- This file contains the essential components and representative code you
+  must document for onboarding or architecture docs.
+- If you want full copies of every router page or feature file, I can include
+  them as separate sections or a longer document.
